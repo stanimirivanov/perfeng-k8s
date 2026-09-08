@@ -21,6 +21,23 @@ configuration. Never copy a fixture into `bundles` and call it deployable.
 
 ## Local validation
 
+Use Python 3.12 and the locked uv environment for repository-owned benchmark
+definitions:
+
+```sh
+uv sync --locked
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked ty check
+uv run --locked python -m unittest discover -s tests -v
+uv run --locked python scripts/validate.py
+```
+
+Validation is intentionally offline. It checks the owned kube-burner subset,
+bounded workload size, immutable images, local output, referenced templates,
+pod security, and the pinned upstream release metadata. It does not prove that
+a target cluster is healthy or representative.
+
 The validator revision used by CI is pinned in
 `.github/workflows/validate.yml`. Check out that revision in the adjacent
 `perfeng-control-plane` repository before reproducing CI locally.

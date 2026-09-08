@@ -1,0 +1,25 @@
+[project]
+name = "perfeng-k8s"
+version = "0.1.0"
+description = "Validation tooling for performance platform Kubernetes configuration"
+requires-python = ">=3.12"
+dependencies = ["PyYAML>=6.0.3,<7"]
+
+[dependency-groups]
+dev = ["ruff>=0.16.4,<0.17", "ty>=0.0.1,<1", "types-PyYAML"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
+
+[tool.ty.src]
+include = ["scripts", "tests"]
+
+[tool.ty.terminal]
+error-on-warning = true

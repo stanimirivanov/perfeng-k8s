@@ -1,8 +1,10 @@
 {
   "recommendations": [
+    "charliermarsh.ruff",
     "editorconfig.editorconfig",
     "github.vscode-github-actions",
     "ms-kubernetes-tools.vscode-kubernetes-tools",
+    "ms-python.python",
     "redhat.vscode-yaml"
   ]
 }
