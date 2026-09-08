@@ -28,6 +28,12 @@ containers-ready, and ready latency through kube-burner's `podLatency`
 measurement. This initial definition is not scheduled and does not establish a
 performance threshold.
 
+The local bundle also owns a reusable analysis Job template. A restricted
+init container materializes and verifies the control-plane-selected raw inputs;
+the approved normalizer never receives object-storage credentials. The template
+is composition input for the control plane and has no reusable Run identity of
+its own.
+
 Deployable bundles will live under:
 
 ```text

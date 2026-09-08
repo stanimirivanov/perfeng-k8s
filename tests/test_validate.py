@@ -76,6 +76,46 @@ class BenchmarkValidationTests(unittest.TestCase):
                 with self.assertRaisesRegex(validate.ValidationError, "verified analysis image"):
                     validate.validate_bundle()
 
+    def test_analysis_job_cannot_predefine_staging_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "analysis.yaml"
+            job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+            job["spec"]["template"]["spec"]["initContainers"][0]["env"].append(
+                {"name": "PERFENG_SOURCE_URI", "value": "s3://untrusted/source.json"}
+            )
+            job_path.write_text(yaml.safe_dump(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "reserved staging"):
+                    validate.validate_analysis_job()
+
+    def test_analysis_job_uses_only_restricted_storage_credentials(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "analysis.yaml"
+            job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+            credentials = job["spec"]["template"]["spec"]["initContainers"][0]["env"][0]
+            credentials["valueFrom"]["secretKeyRef"]["name"] = "perfeng-s3-auth"
+            job_path.write_text(yaml.safe_dump(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "restricted uploader"):
+                    validate.validate_analysis_job()
+
+    def test_analysis_job_requires_download_integrity_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "analysis.yaml"
+            job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+            initializer = job["spec"]["template"]["spec"]["initContainers"][0]
+            initializer["args"][0] = initializer["args"][0].replace("sha256sum -c -", "true")
+            job_path.write_text(yaml.safe_dump(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "integrity checks"):
+                    validate.validate_analysis_job()
+
     def load_config(self) -> dict[str, Any]:
         return copy.deepcopy(
             yaml.safe_load((validate.WORKLOAD_ROOT / "config.yml").read_text(encoding="utf-8"))
@@ -89,6 +129,11 @@ class BenchmarkValidationTests(unittest.TestCase):
         source = validate.WORKLOAD_ROOT / "templates" / "pod.yml"
         (root / "templates" / "pod.yml").write_bytes(source.read_bytes())
         return directory
+
+    def copy_bundle(self, root: Path) -> Path:
+        bundle = root / "bundle"
+        shutil.copytree(validate.BUNDLE_ROOT, bundle)
+        return bundle
 
 
 if __name__ == "__main__":
