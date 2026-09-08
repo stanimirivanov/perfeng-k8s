@@ -1,0 +1,38 @@
+name: Validate Kubernetes deployment configuration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out deployment configuration
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check out the pinned registry validator
+        uses: actions/checkout@v4
+        with:
+          repository: stanimirivanov/perfeng-control-plane
+          ref: fa34807de32d1fb6d625ab76d2954e554a76b72a
+          path: .validation/perfeng-control-plane
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: .validation/perfeng-control-plane/go.mod
+          cache-dependency-path: .validation/perfeng-control-plane/go.sum
+      - name: Validate the repository fixture with the runtime loader
+        working-directory: .validation/perfeng-control-plane
+        run: >-
+          go run ./cmd/validate-registry
+          -root "${{ github.workspace }}/testdata/runtime-registry"
+          -manifest registry.json

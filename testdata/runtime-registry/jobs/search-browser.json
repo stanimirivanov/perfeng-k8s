@@ -1,0 +1,23 @@
+{
+  "spec": {
+    "backoffLimit": 0,
+    "completions": 1,
+    "parallelism": 1,
+    "activeDeadlineSeconds": 900,
+    "template": {
+      "spec": {
+        "restartPolicy": "Never",
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "name": "runner",
+            "image": "ghcr.io/example/perfeng-k6@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "args": [
+              "run"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
