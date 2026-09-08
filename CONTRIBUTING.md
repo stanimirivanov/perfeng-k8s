@@ -50,8 +50,10 @@ The validator revision used by CI is pinned in
 From this repository in PowerShell:
 
 ```powershell
-$bundleRoot = (Resolve-Path testdata/runtime-registry).Path
-git -C ../perfeng-control-plane checkout fa34807de32d1fb6d625ab76d2954e554a76b72a
+$fixtureRoot = (Resolve-Path testdata/runtime-registry).Path
+$bundleRoot = (Resolve-Path bundles/local-kind-windows/1.0.0).Path
+git -C ../perfeng-control-plane checkout 3dfc773d30df59195807a2e09c92bf3add40e250
+go -C ../perfeng-control-plane run ./cmd/validate-registry -root $fixtureRoot -manifest registry.json
 go -C ../perfeng-control-plane run ./cmd/validate-registry -root $bundleRoot -manifest registry.json
 ```
 

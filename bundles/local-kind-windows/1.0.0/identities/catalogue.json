@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "platform-tests",
+  "version": "1.0.0",
+  "tests": [
+    {
+      "id": "pod-startup-k8s",
+      "workload": "pod-startup-smoke",
+      "profile": "smoke"
+    }
+  ]
+}

@@ -16,10 +16,11 @@ and in `perfeng-environment`.
 
 ## Current scope
 
-The repository currently establishes the runtime-bundle validation boundary. The
-fixture under `testdata` is intentionally synthetic and must never be deployed.
-There is not yet a reviewed runtime bundle because the analysis runner has not
-been published with a registry digest.
+The fixture under `testdata` is intentionally synthetic and must never be
+deployed. The first reviewed bundle under
+`bundles/local-kind-windows/1.0.0` binds the native Windows pod-startup flow to
+the verified perfeng-analysis 0.8.0 image. It is a local integration bundle, not
+a production or shared-environment promotion.
 
 The first owned platform workload is a bounded pod-startup benchmark under
 `workloads/pod-startup`. It records Kubernetes scheduling, initialization,

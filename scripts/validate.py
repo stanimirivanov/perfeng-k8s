@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD_ROOT = ROOT / "workloads" / "pod-startup"
 WORKLOAD_DEFINITION = WORKLOAD_ROOT / "workload.json"
 RELEASE_PATH = ROOT / "toolchain" / "kube-burner.json"
+BUNDLE_ROOT = ROOT / "bundles" / "local-kind-windows" / "1.0.0"
 IMAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$")
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
@@ -25,6 +26,12 @@ EXPECTED_IMAGE = (
     "registry.k8s.io/pause:3.10.1@sha256:"
     "278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c"
 )
+ANALYSIS_IMAGE = (
+    "ghcr.io/stanimirivanov/perfeng-analysis@sha256:"
+    "eb13b5d8074467fb23a1d10041f0f75606af192cd68385e30e56cd172d97b0ed"
+)
+ANALYSIS_REVISION = "cc7c84ba3e373aa3245a6091b3c24714fe2c37e8"
+ENVIRONMENT_REVISION = "e0b95cb10cdabb9be95543947b6552b51aa81832"
 
 
 class ValidationError(ValueError):
@@ -327,10 +334,111 @@ def validate_workload() -> None:
         fail("pod-startup workload configuration checksum does not match")
 
 
+def file_digest(path: Path) -> str:
+    """Return the lowercase SHA-256 of one reviewed file."""
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as error:
+        raise ValidationError(f"Could not read {display_path(path)}") from error
+
+
+def validate_bundle() -> None:
+    """Validate the repository-owned identities of the first runtime bundle."""
+    registry = load_json(BUNDLE_ROOT / "registry.json")
+    entries = sequence(registry.get("entries"), "runtime bundle entries")
+    if registry.get("schemaVersion") != 1 or len(entries) != 1:
+        fail("runtime bundle must contain exactly one schema version 1 entry")
+    entry = mapping(entries[0], "runtime bundle entry")
+
+    catalogue = load_json(BUNDLE_ROOT / "identities" / "catalogue.json")
+    environment = load_json(BUNDLE_ROOT / "identities" / "environment.json")
+    analysis = load_json(BUNDLE_ROOT / "identities" / "analysis-image.json")
+    workload_digest = file_digest(WORKLOAD_DEFINITION)
+    windows_asset = mapping(
+        mapping(load_json(RELEASE_PATH)["assets"], "kube-burner assets")["windows-amd64"],
+        "kube-burner windows asset",
+    )
+
+    if entry.get("testId") != "pod-startup-k8s" or entry.get("contractsVersion") != "0.13.0":
+        fail("runtime bundle test or contracts identity is invalid")
+    if entry.get("profile") != "smoke" or entry.get("dataset") != {"kind": "none"}:
+        fail("runtime bundle profile or dataset is invalid")
+    if entry.get("candidateImages") != [EXPECTED_IMAGE]:
+        fail("runtime bundle candidate image is not the reviewed workload image")
+    if entry.get("principals") != ["local-operator"]:
+        fail("runtime bundle local authorization is invalid")
+    if entry.get("normalization") != {
+        "sourceFormat": "kube-burner-pod-latency-json",
+        "layout": "",
+    }:
+        fail("runtime bundle normalization profile is invalid")
+
+    raw_producer = mapping(entry.get("rawProducer"), "runtime raw producer")
+    raw_artifact = mapping(raw_producer.get("artifact"), "runtime raw producer artifact")
+    if raw_producer.get("name") != "kube-burner" or raw_producer.get("version") != "2.8.5":
+        fail("runtime bundle kube-burner identity is invalid")
+    if raw_artifact != {
+        "kind": "release-archive",
+        "url": windows_asset["url"],
+        "archiveSha256": windows_asset["sha256"],
+        "executableSha256": windows_asset["executableSha256"],
+    }:
+        fail("runtime bundle does not use the reviewed Windows kube-burner archive")
+
+    for field in ("normalizerProducer", "reportProducer"):
+        if entry.get(field) != {
+            "name": "perfeng-analysis",
+            "version": "0.8.0",
+            "image": ANALYSIS_IMAGE,
+        }:
+            fail(f"runtime bundle {field} is not the verified analysis image")
+    if analysis != {
+        "schemaVersion": 1,
+        "name": "perfeng-analysis",
+        "version": "0.8.0",
+        "image": ANALYSIS_IMAGE,
+        "source": {
+            "repository": "https://github.com/stanimirivanov/perfeng-analysis",
+            "gitSha": ANALYSIS_REVISION,
+        },
+        "platform": "linux/amd64",
+    }:
+        fail("runtime bundle analysis image provenance is invalid")
+
+    catalogue_reference = mapping(entry.get("catalogue"), "runtime catalogue")
+    if catalogue_reference != {
+        "id": catalogue.get("id"),
+        "version": catalogue.get("version"),
+        "sha256": file_digest(BUNDLE_ROOT / "identities" / "catalogue.json"),
+    }:
+        fail("runtime bundle catalogue reference does not match its reviewed bytes")
+    workload_reference = mapping(entry.get("workload"), "runtime workload")
+    if workload_reference != {
+        "id": "pod-startup-smoke",
+        "version": "1.0.0",
+        "sha256": workload_digest,
+    }:
+        fail("runtime bundle workload reference does not match its reviewed bytes")
+
+    environment_reference = mapping(entry.get("environment"), "runtime environment")
+    source = mapping(environment.get("source"), "runtime environment source")
+    cluster = mapping(environment.get("cluster"), "runtime environment cluster")
+    if source.get("gitSha") != ENVIRONMENT_REVISION:
+        fail("runtime bundle environment source revision is invalid")
+    if environment_reference != {
+        "id": environment.get("id"),
+        "version": environment.get("version"),
+        "sha256": file_digest(BUNDLE_ROOT / "identities" / "environment.json"),
+        "fingerprint": cluster.get("sha256"),
+    }:
+        fail("runtime bundle environment reference does not match its reviewed bytes")
+
+
 def validate() -> None:
     """Validate all repository-owned benchmark definitions."""
     validate_release()
     validate_workload()
+    validate_bundle()
 
 
 def main() -> int:

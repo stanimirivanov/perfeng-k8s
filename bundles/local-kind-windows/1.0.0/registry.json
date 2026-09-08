@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "policy": "policies/pod-startup.json",
+      "testId": "pod-startup-k8s",
+      "contractsVersion": "0.13.0",
+      "catalogue": {
+        "id": "platform-tests",
+        "version": "1.0.0",
+        "sha256": "83c2f500346147ffebfe65e795313170270fbdecb7cb3bc20cd804367c57be05"
+      },
+      "profile": "smoke",
+      "rawProducer": {
+        "name": "kube-burner",
+        "version": "2.8.5",
+        "artifact": {
+          "kind": "release-archive",
+          "url": "https://github.com/kube-burner/kube-burner/releases/download/v2.8.5/kube-burner-V2.8.5-windows-x86_64.zip",
+          "archiveSha256": "acd855bcc495bdcccc2254864828dddaf719bb0db071b872d85aa40245c14adc",
+          "executableSha256": "68441b715705dc7f4c5ecfa935e9cb54f2153284eda94f4941f015a78cee022f"
+        }
+      },
+      "normalizerProducer": {
+        "name": "perfeng-analysis",
+        "version": "0.8.0",
+        "image": "ghcr.io/stanimirivanov/perfeng-analysis@sha256:eb13b5d8074467fb23a1d10041f0f75606af192cd68385e30e56cd172d97b0ed"
+      },
+      "normalization": {
+        "sourceFormat": "kube-burner-pod-latency-json",
+        "layout": ""
+      },
+      "reportProducer": {
+        "name": "perfeng-analysis",
+        "version": "0.8.0",
+        "image": "ghcr.io/stanimirivanov/perfeng-analysis@sha256:eb13b5d8074467fb23a1d10041f0f75606af192cd68385e30e56cd172d97b0ed"
+      },
+      "workload": {
+        "id": "pod-startup-smoke",
+        "version": "1.0.0",
+        "sha256": "5474762558361b07efebd56e9b5b6e48e3c4030104565b26cb8c4fbe968a8113"
+      },
+      "environment": {
+        "id": "local-kind-windows",
+        "version": "1.0.0",
+        "sha256": "d3aa4b6ca9a12408f71308907baf3da74946f6ac88cba496473e0eeb60ecea76",
+        "fingerprint": "3a9ca267ed30879e301a640ec7091552878af5f5d0abe2c06c5c8ad4538752d5"
+      },
+      "dataset": {
+        "kind": "none"
+      },
+      "candidateImages": [
+        "registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c"
+      ],
+      "principals": [
+        "local-operator"
+      ]
+    }
+  ]
+}
