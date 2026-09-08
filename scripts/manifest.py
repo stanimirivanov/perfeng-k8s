@@ -34,6 +34,7 @@ def build_manifest(
     created_at: str | None = None,
 ) -> dict[str, Any]:
     """Verify frozen bytes and storage receipts, then build raw-result/v2."""
+    capture_root = capture_root.resolve(strict=True)
     exact_fields(request, "manifest request", {"testId", "receipts"})
     if request["testId"] != TEST_ID:
         raise ManifestError("Manifest test identity is unsupported")
