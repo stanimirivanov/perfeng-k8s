@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "name": "perfeng-analysis",
+  "version": "0.8.0",
+  "image": "ghcr.io/stanimirivanov/perfeng-analysis@sha256:eb13b5d8074467fb23a1d10041f0f75606af192cd68385e30e56cd172d97b0ed",
+  "source": {
+    "repository": "https://github.com/stanimirivanov/perfeng-analysis",
+    "gitSha": "cc7c84ba3e373aa3245a6091b3c24714fe2c37e8"
+  },
+  "platform": "linux/amd64"
+}

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -57,6 +59,22 @@ class BenchmarkValidationTests(unittest.TestCase):
             with patch.object(validate, "WORKLOAD_ROOT", Path(directory)):
                 with self.assertRaisesRegex(validate.ValidationError, "inside the workload"):
                     validate.validate_workload()
+
+    def test_runtime_bundle_identities_are_pinned(self) -> None:
+        validate.validate_bundle()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shutil.copytree(validate.BUNDLE_ROOT, root / "bundle")
+            registry_path = root / "bundle" / "registry.json"
+            registry = json.loads(registry_path.read_text(encoding="utf-8"))
+            registry["entries"][0]["normalizerProducer"]["image"] = (
+                "ghcr.io/stanimirivanov/perfeng-analysis:latest"
+            )
+            registry_path.write_text(json.dumps(registry), encoding="utf-8")
+            with patch.object(validate, "BUNDLE_ROOT", root / "bundle"):
+                with self.assertRaisesRegex(validate.ValidationError, "verified analysis image"):
+                    validate.validate_bundle()
 
     def load_config(self) -> dict[str, Any]:
         return copy.deepcopy(

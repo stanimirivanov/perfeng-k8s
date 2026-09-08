@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: stanimirivanov/perfeng-control-plane
-          ref: fa34807de32d1fb6d625ab76d2954e554a76b72a
+          ref: 3dfc773d30df59195807a2e09c92bf3add40e250
           path: .validation/perfeng-control-plane
           persist-credentials: false
       - name: Set up Go
@@ -53,9 +53,12 @@ jobs:
         with:
           go-version-file: .validation/perfeng-control-plane/go.mod
           cache-dependency-path: .validation/perfeng-control-plane/go.sum
-      - name: Validate the repository fixture with the runtime loader
+      - name: Validate fixtures and deployable bundles with the runtime loader
         working-directory: .validation/perfeng-control-plane
-        run: >-
-          go run ./cmd/validate-registry
-          -root "${{ github.workspace }}/testdata/runtime-registry"
-          -manifest registry.json
+        run: |
+          go run ./cmd/validate-registry \
+            -root "${{ github.workspace }}/testdata/runtime-registry" \
+            -manifest registry.json
+          go run ./cmd/validate-registry \
+            -root "${{ github.workspace }}/bundles/local-kind-windows/1.0.0" \
+            -manifest registry.json
