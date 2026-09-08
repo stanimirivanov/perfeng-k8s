@@ -121,15 +121,20 @@ def validate_release() -> None:
     }
     for platform, filename in filenames.items():
         asset = mapping(assets[platform], f"kube-burner asset {platform}")
-        exact_keys(asset, f"kube-burner asset {platform}", {"url", "sha256"})
+        exact_keys(
+            asset,
+            f"kube-burner asset {platform}",
+            {"url", "sha256", "executableSha256"},
+        )
         expected_url = (
             f"https://github.com/kube-burner/kube-burner/releases/download/v{version}/{filename}"
         )
         if asset["url"] != expected_url:
             fail(f"kube-burner asset {platform} has an unexpected URL")
-        digest = asset["sha256"]
-        if not isinstance(digest, str) or HASH_PATTERN.fullmatch(digest) is None:
-            fail(f"kube-burner asset {platform} has an invalid SHA-256")
+        for field in ("sha256", "executableSha256"):
+            digest = asset[field]
+            if not isinstance(digest, str) or HASH_PATTERN.fullmatch(digest) is None:
+                fail(f"kube-burner asset {platform} has an invalid {field}")
 
 
 def validate_metrics(config: Mapping[str, Any]) -> None:

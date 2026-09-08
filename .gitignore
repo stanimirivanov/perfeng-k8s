@@ -1,4 +1,5 @@
 /.idea/
+/.local/
 /.validation/
 /.venv/
 .coverage
