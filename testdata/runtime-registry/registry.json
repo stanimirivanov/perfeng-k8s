@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "policy": "policies/search-browser.json",
+      "testId": "search-browser",
+      "contractsVersion": "0.8.0",
+      "catalogue": {
+        "id": "application-tests",
+        "version": "1.0.0",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "profile": "smoke",
+      "rawProducer": {
+        "name": "perfeng-k6",
+        "version": "1.0.0",
+        "image": "ghcr.io/example/perfeng-k6@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "normalizerProducer": {
+        "name": "perfeng-analysis",
+        "version": "1.0.0",
+        "image": "ghcr.io/example/perfeng-analysis@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "normalization": {
+        "sourceFormat": "k6-summary-json",
+        "layout": "typed"
+      },
+      "reportProducer": {
+        "name": "perfeng-analysis",
+        "version": "1.0.0",
+        "image": "ghcr.io/example/perfeng-analysis@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "executionTemplate": "jobs/search-browser.json",
+      "workload": {
+        "id": "browser-smoke",
+        "version": "1.0.0",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "environment": {
+        "id": "local-kind",
+        "version": "1.0.0",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "fingerprint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "dataset": {
+        "kind": "versioned",
+        "id": "search-data",
+        "version": "1.0.0",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "seed": 42
+      },
+      "candidateImages": [
+        "ghcr.io/example/search@sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      ],
+      "principals": [
+        "fixture-principal"
+      ]
+    }
+  ]
+}

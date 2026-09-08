@@ -1,0 +1,41 @@
+# Contributing
+
+## Change boundaries
+
+Keep deployment changes reviewable and reversible. A pull request should promote
+one coherent set of immutable component and configuration identities. Do not mix
+runtime promotion with unrelated repository tooling or local-development changes.
+
+A deployable bundle must contain real, independently verifiable identities:
+
+- use the final registry manifest digest printed by each publisher workflow;
+- hash the exact catalogue, workload, environment, dataset, and policy bytes;
+- use a candidate image that exists in its registry and is approved for the
+  target environment;
+- keep Job images consistent with the producer bound in `registry.json`;
+- review principals as authorization data, not descriptive metadata.
+
+Files under `testdata` are validation fixtures only. Synthetic hashes and example
+registry names are permitted there because they cannot be selected as deployment
+configuration. Never copy a fixture into `bundles` and call it deployable.
+
+## Local validation
+
+The validator revision used by CI is pinned in
+`.github/workflows/validate.yml`. Check out that revision in the adjacent
+`perfeng-control-plane` repository before reproducing CI locally.
+
+From this repository in PowerShell:
+
+```powershell
+$bundleRoot = (Resolve-Path testdata/runtime-registry).Path
+git -C ../perfeng-control-plane checkout fa34807de32d1fb6d625ab76d2954e554a76b72a
+go -C ../perfeng-control-plane run ./cmd/validate-registry -root $bundleRoot -manifest registry.json
+```
+
+Return the adjacent repository to its previous branch after validation. The
+command must print `Registry bundle is valid.` and exit successfully.
+
+When the bundle format intentionally changes, update the pinned validator and
+the fixtures in the same pull request. Review the control-plane change first;
+never float validation against a branch or tag.
