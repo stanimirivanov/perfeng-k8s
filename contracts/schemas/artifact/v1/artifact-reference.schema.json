@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://perfeng.dev/schemas/artifact/v1/artifact-reference.schema.json",
+  "title": "Immutable artifact reference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "runId",
+    "kind",
+    "uri",
+    "sha256",
+    "sizeBytes",
+    "mediaType",
+    "format"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "runId": {
+      "$ref": "https://perfeng.dev/schemas/result/v1/test-result.schema.json#/properties/runId"
+    },
+    "kind": {
+      "enum": [
+        "raw",
+        "normalized"
+      ]
+    },
+    "uri": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^(s3|https)://[^\\s?#]+$"
+    },
+    "sha256": {
+      "$ref": "https://perfeng.dev/schemas/workload/v1/workload.schema.json#/$defs/sha256"
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mediaType": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+    },
+    "format": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9./_-]*$"
+    }
+  }
+}

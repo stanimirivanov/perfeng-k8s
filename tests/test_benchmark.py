@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import io
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -10,6 +11,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts import benchmark
+
+RUN_ID = "perf-20260908-120000-a1b2c3d4"
 
 
 class BenchmarkCommandTests(unittest.TestCase):
@@ -39,7 +42,7 @@ class BenchmarkCommandTests(unittest.TestCase):
                         "--context",
                         "kind-perfeng-local",
                         "--run-id",
-                        "pod-startup-test-01",
+                        RUN_ID,
                         "--output",
                         str(output),
                     ]
@@ -66,7 +69,7 @@ class BenchmarkCommandTests(unittest.TestCase):
                         "--context",
                         "kind-perfeng-local",
                         "--run-id",
-                        "pod-startup-test-01",
+                        RUN_ID,
                         "--output",
                         str(root / "results"),
                         "--execute",
@@ -110,7 +113,7 @@ class BenchmarkCommandTests(unittest.TestCase):
             args = argparse.Namespace(
                 kubeconfig=str(kubeconfig),
                 context="kind-perfeng-local",
-                run_id="pod-startup-test-01",
+                run_id=RUN_ID,
                 output=str(benchmark.validate.ROOT / "results"),
                 execute=False,
                 confirm_context=None,
@@ -122,7 +125,7 @@ class BenchmarkCommandTests(unittest.TestCase):
         plan = benchmark.RunPlan(
             kubeconfig=Path("config"),
             context="kind-perfeng-local",
-            run_id="pod-startup-test-01",
+            run_id=RUN_ID,
             output=Path("C:/benchmark results/run-01"),
             tool=benchmark.ToolAsset("1.0.0", "url", "a" * 64, "b" * 64, "zip", "tool"),
         )
@@ -141,6 +144,49 @@ class BenchmarkCommandTests(unittest.TestCase):
 
         environment = stream.call_args.args[2]
         self.assertEqual(environment["METRICS_DIRECTORY"], "C:/benchmark results/run-01")
+
+    def test_success_receipt_pins_contract_workload_and_release_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "capture"
+            plan = benchmark.RunPlan(
+                kubeconfig=Path("config"),
+                context="kind-perfeng-local",
+                run_id=RUN_ID,
+                output=output,
+                tool=benchmark.host_asset(),
+            )
+
+            def write_capture(_command, _cwd, _environment, log: Path) -> int:
+                log.write_text("completed\n", encoding="utf-8")
+                for name in (
+                    "jobSummary.json",
+                    "podLatencyMeasurement-pod-startup-smoke.json",
+                    "podLatencyQuantilesMeasurement-pod-startup-smoke.json",
+                ):
+                    (output / name).write_text("[]\n", encoding="utf-8")
+                return 0
+
+            with (
+                patch.object(benchmark, "verify_context"),
+                patch.object(benchmark, "acquire_tool", return_value=Path("tool")),
+                patch.object(benchmark, "stream", side_effect=write_capture),
+                patch.object(benchmark, "namespace_removed", return_value=True),
+                redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(benchmark.execute(plan), 0)
+
+            receipt = json.loads((output / "execution.json").read_text(encoding="utf-8"))
+            self.assertEqual(receipt["contractsVersion"], "0.13.0")
+            self.assertEqual(receipt["workload"]["id"], "pod-startup-smoke")
+            self.assertEqual(
+                receipt["tool"]["artifact"],
+                {
+                    "kind": "release-archive",
+                    "url": plan.tool.url,
+                    "archiveSha256": plan.tool.archive_sha256,
+                    "executableSha256": plan.tool.executable_sha256,
+                },
+            )
 
 
 if __name__ == "__main__":

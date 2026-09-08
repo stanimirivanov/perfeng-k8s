@@ -3,10 +3,14 @@ name = "perfeng-k8s"
 version = "0.1.0"
 description = "Validation tooling for performance platform Kubernetes configuration"
 requires-python = ">=3.12"
-dependencies = ["PyYAML>=6.0.3,<7"]
+dependencies = [
+    "jsonschema[format]>=4.26.0,<5",
+    "PyYAML>=6.0.3,<7",
+    "referencing>=0.37.0,<0.38",
+]
 
 [dependency-groups]
-dev = ["ruff>=0.16.4,<0.17", "ty>=0.0.1,<1", "types-PyYAML"]
+dev = ["ruff>=0.16.4,<0.17", "ty>=0.0.1,<1", "types-jsonschema", "types-PyYAML"]
 
 [tool.uv]
 package = false

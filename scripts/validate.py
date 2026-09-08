@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -11,8 +12,11 @@ from typing import Any, Never
 
 import yaml
 
+from scripts import contracts
+
 ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD_ROOT = ROOT / "workloads" / "pod-startup"
+WORKLOAD_DEFINITION = WORKLOAD_ROOT / "workload.json"
 RELEASE_PATH = ROOT / "toolchain" / "kube-burner.json"
 IMAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$")
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
@@ -243,6 +247,18 @@ def validate_template(path: Path) -> None:
 
 def validate_workload() -> None:
     """Validate the bounded pod-startup workload and referenced template."""
+    definition = load_json(WORKLOAD_DEFINITION)
+    contracts.validate("workload/v1/workload.schema.json", definition)
+    if (
+        definition["id"] != "pod-startup-smoke"
+        or definition["version"] != "1.0.0"
+        or definition["tool"] != "kube-burner"
+        or definition["profile"] != "smoke"
+        or definition["model"] != "open"
+        or definition["configuration"]["path"] != "workloads/pod-startup/config.yml"
+    ):
+        fail("pod-startup workload definition identity is invalid")
+
     config = load_yaml(WORKLOAD_ROOT / "config.yml")
     exact_keys(config, "benchmark config", {"metricsEndpoints", "global", "jobs"})
     validate_metrics(config)
@@ -305,6 +321,10 @@ def validate_workload() -> None:
         fail("pod-startup image must match the reviewed immutable pause image")
 
     validate_template(WORKLOAD_ROOT / Path(*relative_path.parts))
+
+    config_digest = hashlib.sha256((WORKLOAD_ROOT / "config.yml").read_bytes()).hexdigest()
+    if definition["configuration"]["sha256"] != config_digest:
+        fail("pod-startup workload configuration checksum does not match")
 
 
 def validate() -> None:
