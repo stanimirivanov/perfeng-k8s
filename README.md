@@ -59,3 +59,7 @@ uv run --locked ty check
 uv run --locked python -m unittest discover -s tests -v
 uv run --locked python scripts/validate.py
 ```
+
+The pod-startup command defaults to a non-mutating preview. See
+[the benchmark guide](docs/pod-startup.md) for its explicit execution and
+target-confirmation workflow.

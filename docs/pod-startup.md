@@ -16,10 +16,41 @@ garbage collection and the cluster health precondition remain enabled. The
 workload has no kube-burner latency threshold: ten observations are suitable for
 integration and evidence-shape checks, not a stable regression decision.
 
-The definition currently has offline validation only. Do not run it against a
-shared or production cluster until a later change adds reviewed execution,
-permissions, result capture, cleanup verification, and an explicit target-cluster
-approval procedure.
+## Preview and execute
+
+The runner requires an explicit kubeconfig, context, run identity, and fresh
+output directory. Its default mode only prints the planned target and command;
+it does not download tools or contact Kubernetes.
+
+```powershell
+$arguments = @(
+  "-m", "scripts.benchmark", "pod-startup",
+  "--kubeconfig", "../perfeng-environment/.local/perfeng-local.kubeconfig",
+  "--context", "kind-perfeng-local",
+  "--run-id", "pod-startup-20260908-01",
+  "--output", ".local/results/pod-startup-20260908-01"
+)
+uv run --locked python @arguments
+uv run --locked python @arguments --execute --confirm-context kind-perfeng-local
+```
+
+Execution validates the named context with `kubectl`, downloads the platform's
+pinned kube-burner archive when it is not cached, verifies both archive and
+executable hashes, streams output to the terminal and `runner.log`, and writes
+`execution.json`. Success requires kube-burner exit code zero, at least one
+non-empty JSON measurement file, and removal of the benchmark namespace.
+
+If execution fails and the namespace remains, inspect it before deciding whether
+to delete it:
+
+```powershell
+kubectl --kubeconfig ../perfeng-environment/.local/perfeng-local.kubeconfig `
+  --context kind-perfeng-local get namespace perfeng-pod-startup
+```
+
+The command is intended for disposable local clusters only. It does not install
+cluster credentials, schedule recurring runs, upload results, or authorize use
+against shared and production clusters.
 
 Tool acquisition is pinned in `toolchain/kube-burner.json`. Verify the downloaded
 archive against its recorded SHA-256 before executing it.
