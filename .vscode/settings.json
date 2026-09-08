@@ -7,6 +7,13 @@
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "json.format.keepLines": false,
+  "python.analysis.typeCheckingMode": "off",
+  "python.testing.unittestEnabled": true,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "tests"
+  ],
   "yaml.format.enable": true,
   "yaml.validate": true
 }

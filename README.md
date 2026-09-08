@@ -21,6 +21,12 @@ fixture under `testdata` is intentionally synthetic and must never be deployed.
 There is not yet a reviewed runtime bundle because the analysis runner has not
 been published with a registry digest.
 
+The first owned platform workload is a bounded pod-startup benchmark under
+`workloads/pod-startup`. It records Kubernetes scheduling, initialization,
+containers-ready, and ready latency through kube-burner's `podLatency`
+measurement. This initial definition is not scheduled and does not establish a
+performance threshold.
+
 Deployable bundles will live under:
 
 ```text
@@ -42,3 +48,14 @@ workflow and validates every repository-owned fixture or bundle with that
 implementation.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local validation and change rules.
+
+## Validate the repository
+
+```sh
+uv sync --locked
+uv run --locked ruff check .
+uv run --locked ruff format --check .
+uv run --locked ty check
+uv run --locked python -m unittest discover -s tests -v
+uv run --locked python scripts/validate.py
+```

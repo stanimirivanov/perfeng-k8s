@@ -1,0 +1,27 @@
+metricsEndpoints:
+  - alias: local-results
+    indexer:
+      type: local
+      metricsDirectory: "{{.METRICS_DIRECTORY}}"
+global:
+  gc: true
+  clusterHealth: true
+  measurements:
+    - name: podLatency
+      timeseriesIndexer: local-results
+      quantilesIndexer: local-results
+jobs:
+  - name: pod-startup-smoke
+    jobIterations: 10
+    qps: 2
+    burst: 2
+    preLoadImages: true
+    namespacedIterations: false
+    namespace: perfeng-pod-startup
+    waitWhenFinished: true
+    podWait: false
+    objects:
+      - objectTemplate: templates/pod.yml
+        replicas: 1
+        inputVars:
+          containerImage: registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
