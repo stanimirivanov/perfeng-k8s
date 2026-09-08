@@ -9,6 +9,7 @@ import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 from scripts import benchmark, contracts, manifest, validate
 
@@ -146,6 +147,19 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(value["producer"]["artifact"]["kind"], "release-archive")
         self.assertEqual(len(value["artifacts"]), 3)
         self.assertEqual(value["measurementWindow"]["start"], "2026-09-08T12:00:00Z")
+
+    def test_canonicalizes_capture_root_before_computing_relative_paths(self) -> None:
+        aliased_root = MagicMock(spec=Path)
+        aliased_root.resolve.return_value = self.root.resolve(strict=True)
+
+        value = manifest.build_manifest(
+            aliased_root,
+            request(self.root),
+            "2026-09-08T12:01:01Z",
+        )
+
+        aliased_root.resolve.assert_called_once_with(strict=True)
+        self.assertEqual(len(value["artifacts"]), 3)
 
     def test_rejects_changed_bytes_and_storage_claims(self) -> None:
         mutations = {
