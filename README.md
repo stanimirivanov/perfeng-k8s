@@ -57,9 +57,11 @@ uv run --locked ruff check .
 uv run --locked ruff format --check .
 uv run --locked ty check
 uv run --locked python -m unittest discover -s tests -v
-uv run --locked python scripts/validate.py
+uv run --locked python -m scripts.validate
 ```
 
 The pod-startup command defaults to a non-mutating preview. See
 [the benchmark guide](docs/pod-startup.md) for its explicit execution and
-target-confirmation workflow.
+target-confirmation workflow. After a storage adapter has persisted the frozen
+measurement bytes, the [offline manifest assembler](docs/raw-manifests.md)
+binds its verified receipts into raw-result/v2 without contacting storage.

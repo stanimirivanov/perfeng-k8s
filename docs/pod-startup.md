@@ -27,8 +27,8 @@ $arguments = @(
   "-m", "scripts.benchmark", "pod-startup",
   "--kubeconfig", "../perfeng-environment/.local/perfeng-local.kubeconfig",
   "--context", "kind-perfeng-local",
-  "--run-id", "pod-startup-20260908-01",
-  "--output", ".local/results/pod-startup-20260908-01"
+  "--run-id", "perf-20260908-120000-a1b2c3d4",
+  "--output", ".local/results/perf-20260908-120000-a1b2c3d4"
 )
 uv run --locked python @arguments
 uv run --locked python @arguments --execute --confirm-context kind-perfeng-local
@@ -37,7 +37,9 @@ uv run --locked python @arguments --execute --confirm-context kind-perfeng-local
 Execution validates the named context with `kubectl`, downloads the platform's
 pinned kube-burner archive when it is not cached, verifies both archive and
 executable hashes, streams output to the terminal and `runner.log`, and writes
-`execution.json`. Success requires kube-burner exit code zero, at least one
+`execution.json`. The receipt pins contracts 0.13, the release archive and
+executable hashes, the exact workload-definition bytes, and all measurement
+bytes. Success requires kube-burner exit code zero, at least one
 non-empty JSON measurement file, and removal of the benchmark namespace.
 
 If execution fails and the namespace remains, inspect it before deciding whether
@@ -50,7 +52,8 @@ kubectl --kubeconfig ../perfeng-environment/.local/perfeng-local.kubeconfig `
 
 The command is intended for disposable local clusters only. It does not install
 cluster credentials, schedule recurring runs, upload results, or authorize use
-against shared and production clusters.
+against shared and production clusters. See [raw manifests](raw-manifests.md)
+for the separate evidence-assembly boundary.
 
 Tool acquisition is pinned in `toolchain/kube-burner.json`. Verify the downloaded
 archive against its recorded SHA-256 before executing it.

@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://perfeng.dev/schemas/result/v1/test-result.schema.json",
+  "title": "Normalized Test Result",
+  "description": "Normalized performance test result independent of tool",
+  "type": "object",
+  "required": ["schemaVersion", "runId", "metric", "distribution"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^perf-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$",
+      "description": "Reference to the run metadata"
+    },
+    "metric": {
+      "type": "object",
+      "required": ["name", "direction"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_.]*$",
+          "description": "Metric name following naming convention"
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["lower-is-better", "higher-is-better"],
+          "description": "Whether lower or higher values are better"
+        },
+        "type": {
+          "type": ["string", "null"],
+          "default": null,
+          "enum": ["latency", "throughput", "error_rate", "resource", "custom", null],
+          "description": "Metric type"
+        },
+        "unit": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Unit of measurement (ms, req/s, %, etc.)"
+        }
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "required": ["samples"],
+      "additionalProperties": false,
+      "properties": {
+        "samples": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of samples"
+        },
+        "mean": {
+          "type": ["number", "null"],
+          "default": null,
+          "description": "Arithmetic mean"
+        },
+        "median": {
+          "type": ["number", "null"],
+          "default": null,
+          "description": "Median (p50)"
+        },
+        "p90": {
+          "type": ["number", "null"],
+          "default": null,
+          "minimum": 0,
+          "description": "90th percentile"
+        },
+        "p95": {
+          "type": ["number", "null"],
+          "default": null,
+          "minimum": 0,
+          "description": "95th percentile"
+        },
+        "p99": {
+          "type": ["number", "null"],
+          "default": null,
+          "minimum": 0,
+          "description": "99th percentile"
+        },
+        "stddev": {
+          "type": ["number", "null"],
+          "default": null,
+          "minimum": 0,
+          "description": "Standard deviation"
+        },
+        "min": {
+          "type": ["number", "null"],
+          "default": null,
+          "description": "Minimum value"
+        },
+        "max": {
+          "type": ["number", "null"],
+          "default": null,
+          "description": "Maximum value"
+        },
+        "cv": {
+          "type": ["number", "null"],
+          "default": null,
+          "minimum": 0,
+          "description": "Coefficient of variation"
+        }
+      }
+    },
+    "thresholds": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "Threshold evaluation results",
+      "additionalProperties": false,
+      "properties": {
+        "slo": {
+          "type": ["object", "null"],
+          "default": null,
+          "description": "SLO threshold results",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["passed"],
+            "additionalProperties": false,
+            "properties": {
+              "passed": {
+                "type": "boolean"
+              },
+              "threshold": {
+                "type": ["string", "null"],
+                "default": null
+              },
+              "actual": {
+                "type": ["number", "null"],
+                "default": null
+              }
+            }
+          }
+        },
+        "regression": {
+          "type": ["object", "null"],
+          "default": null,
+          "description": "Regression threshold results",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["passed"],
+            "additionalProperties": false,
+            "properties": {
+              "passed": {
+                "type": "boolean"
+              },
+              "baselineValue": {
+                "type": ["number", "null"],
+                "default": null
+              },
+              "actualValue": {
+                "type": ["number", "null"],
+                "default": null
+              },
+              "percentChange": {
+                "type": ["number", "null"],
+                "default": null
+              }
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": ["object", "null"],
+      "default": null,
+      "description": "Additional metadata",
+      "additionalProperties": true
+    }
+  }
+}

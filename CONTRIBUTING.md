@@ -30,13 +30,18 @@ uv run --locked ruff check .
 uv run --locked ruff format --check .
 uv run --locked ty check
 uv run --locked python -m unittest discover -s tests -v
-uv run --locked python scripts/validate.py
+uv run --locked python -m scripts.validate
 ```
 
 Validation is intentionally offline. It checks the owned kube-burner subset,
 bounded workload size, immutable images, local output, referenced templates,
-pod security, and the pinned upstream release metadata. It does not prove that
+pod security, the pinned upstream release metadata, and the checksums of the
+minimal contracts 0.13 snapshot. It does not prove that
 a target cluster is healthy or representative.
+
+Raw-manifest tests use synthetic storage receipts and do not upload or retrieve
+objects. Contract snapshot updates must pin one reviewed perfeng-contracts
+commit and preserve imported schema bytes exactly.
 
 The validator revision used by CI is pinned in
 `.github/workflows/validate.yml`. Check out that revision in the adjacent

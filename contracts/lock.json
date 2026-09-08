@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/stanimirivanov/perfeng-contracts",
+  "commit": "badd9206a88a48042dda54a25c6e362088d23858",
+  "version": "0.13.0",
+  "files": {
+    "schemas/raw-result/v2/raw-result.schema.json": "73262bdd28fe034516871d315e93271345a5ab2c252fc433b544b380de51a4e7",
+    "schemas/artifact/v1/artifact-reference.schema.json": "b1328d1ead8ca62f118bb00bcdae738ad434f3c3e18f1a579f5e28ebf924dcf2",
+    "schemas/catalogue/v2/test-catalogue.schema.json": "7ac2ad4bc3f614b81c27646e09c630aba5a5c18c99c7341f1caa30b406c8dc65",
+    "schemas/workload/v1/workload.schema.json": "1ccc136ab4ea99324eb7c464618d1c80864ffc354866e085587b1cb6e3b1381d",
+    "schemas/result/v1/test-result.schema.json": "8bcb480ef6d7e1fc8468683759539d79e09cae12c2866d6a81f9d35903588134"
+  }
+}

@@ -22,10 +22,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO, Any
 
-from scripts import validate
+from scripts import contracts, validate
 
 MAXIMUM_DOWNLOAD_BYTES = 200 * 1024 * 1024
-RUN_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+RUN_ID_PATTERN = re.compile(r"^perf-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$")
 CONTEXT_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/-]{0,252}$")
 BENCHMARK_NAMESPACE = "perfeng-pod-startup"
 
@@ -105,9 +105,7 @@ def validated_plan(args: argparse.Namespace) -> RunPlan:
     if not isinstance(args.context, str) or CONTEXT_PATTERN.fullmatch(args.context) is None:
         raise BenchmarkError("Context has an invalid form")
     if not isinstance(args.run_id, str) or RUN_ID_PATTERN.fullmatch(args.run_id) is None:
-        raise BenchmarkError("Run ID must be a lowercase DNS label")
-    if len(args.run_id) > 63:
-        raise BenchmarkError("Run ID must not exceed 63 characters")
+        raise BenchmarkError("Run ID must use perf-YYYYMMDD-HHMMSS-xxxxxxxx form")
 
     output = Path(args.output).expanduser().resolve()
     if output.exists():
@@ -331,6 +329,7 @@ def execute(plan: RunPlan) -> int:
     receipt = {
         "schemaVersion": 1,
         "kind": "KubernetesBenchmarkExecution",
+        "contractsVersion": contracts.VERSION,
         "runId": plan.run_id,
         "benchmark": "pod-startup",
         "context": plan.context,
@@ -341,7 +340,18 @@ def execute(plan: RunPlan) -> int:
         "tool": {
             "name": "kube-burner",
             "version": plan.tool.version,
-            "executableSha256": plan.tool.executable_sha256,
+            "artifact": {
+                "kind": "release-archive",
+                "url": plan.tool.url,
+                "archiveSha256": plan.tool.archive_sha256,
+                "executableSha256": plan.tool.executable_sha256,
+            },
+        },
+        "workload": {
+            "file": validate.WORKLOAD_DEFINITION.relative_to(validate.ROOT).as_posix(),
+            "id": "pod-startup-smoke",
+            "version": "1.0.0",
+            "sha256": sha256_file(validate.WORKLOAD_DEFINITION),
         },
         "inputs": {
             "configSha256": sha256_file(validate.WORKLOAD_ROOT / "config.yml"),
