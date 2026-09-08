@@ -32,6 +32,21 @@ ANALYSIS_IMAGE = (
 )
 ANALYSIS_REVISION = "cc7c84ba3e373aa3245a6091b3c24714fe2c37e8"
 ENVIRONMENT_REVISION = "e0b95cb10cdabb9be95543947b6552b51aa81832"
+TRANSFER_IMAGE = (
+    "amazon/aws-cli:2.36.37@sha256:be6228bd99b4b0b9787543952aebfe93c66b5503121b68a724647c523c957a9d"
+)
+STAGING_ENVIRONMENT = {
+    "PERFENG_RAW_MANIFEST_ARTIFACT_ID",
+    "PERFENG_RAW_MANIFEST_URI",
+    "PERFENG_RAW_MANIFEST_SHA256",
+    "PERFENG_RAW_MANIFEST_SIZE_BYTES",
+    "PERFENG_RAW_MANIFEST_PATH",
+    "PERFENG_SOURCE_ARTIFACT_ID",
+    "PERFENG_SOURCE_URI",
+    "PERFENG_SOURCE_SHA256",
+    "PERFENG_SOURCE_SIZE_BYTES",
+    "PERFENG_SOURCE_PATH",
+}
 
 
 class ValidationError(ValueError):
@@ -342,6 +357,230 @@ def file_digest(path: Path) -> str:
         raise ValidationError(f"Could not read {display_path(path)}") from error
 
 
+def validate_analysis_job() -> None:
+    """Validate the reviewed reusable normalization Job template."""
+    job = load_yaml(BUNDLE_ROOT / "jobs" / "analysis.yaml")
+    exact_keys(job, "analysis Job", {"apiVersion", "kind", "metadata", "spec"})
+    if job["apiVersion"] != "batch/v1" or job["kind"] != "Job":
+        fail("analysis template must contain one batch/v1 Job")
+
+    labels = {
+        "app.kubernetes.io/name": "perfeng-analysis",
+        "app.kubernetes.io/component": "normalization",
+    }
+    metadata = mapping(job["metadata"], "analysis Job metadata")
+    if metadata != {"labels": labels}:
+        fail("analysis Job must remain reusable and carry only reviewed labels")
+
+    spec = mapping(job["spec"], "analysis Job spec")
+    exact_keys(
+        spec,
+        "analysis Job spec",
+        {"backoffLimit", "completions", "parallelism", "activeDeadlineSeconds", "template"},
+    )
+    if (
+        spec["backoffLimit"] != 0
+        or spec["completions"] != 1
+        or spec["parallelism"] != 1
+        or spec["activeDeadlineSeconds"] != 600
+    ):
+        fail("analysis Job execution bounds are invalid")
+
+    template = mapping(spec["template"], "analysis Pod template")
+    exact_keys(template, "analysis Pod template", {"metadata", "spec"})
+    if template["metadata"] != {"labels": labels}:
+        fail("analysis Pod labels are invalid")
+    pod = mapping(template["spec"], "analysis Pod spec")
+    exact_keys(
+        pod,
+        "analysis Pod spec",
+        {
+            "restartPolicy",
+            "automountServiceAccountToken",
+            "enableServiceLinks",
+            "nodeSelector",
+            "tolerations",
+            "securityContext",
+            "initContainers",
+            "containers",
+            "volumes",
+        },
+    )
+    if (
+        pod["restartPolicy"] != "Never"
+        or pod["automountServiceAccountToken"] is not False
+        or pod["enableServiceLinks"] is not False
+        or pod["nodeSelector"] != {"kubernetes.io/os": "linux", "workload": "control-plane"}
+    ):
+        fail("analysis Pod scheduling or service-account policy is invalid")
+    if pod["tolerations"] != [
+        {
+            "key": "node-role.kubernetes.io/control-plane",
+            "operator": "Exists",
+            "effect": "NoSchedule",
+        }
+    ]:
+        fail("analysis Pod tolerations are invalid")
+    if pod["securityContext"] != {
+        "runAsNonRoot": True,
+        "runAsUser": 65532,
+        "runAsGroup": 65532,
+        "fsGroup": 65532,
+        "fsGroupChangePolicy": "OnRootMismatch",
+        "seccompProfile": {"type": "RuntimeDefault"},
+    }:
+        fail("analysis Pod security context is invalid")
+
+    initializers = sequence(pod["initContainers"], "analysis initContainers")
+    containers = sequence(pod["containers"], "analysis containers")
+    if len(initializers) != 1 or len(containers) != 1:
+        fail("analysis Job must contain one input initializer and one normalizer")
+    validate_analysis_input_container(mapping(initializers[0], "analysis input container"))
+    validate_analysis_normalizer(mapping(containers[0], "analysis normalizer"))
+
+    if pod["volumes"] != [
+        {"name": "analysis-input", "emptyDir": {"sizeLimit": "64Mi"}},
+        {"name": "analysis-output", "emptyDir": {"sizeLimit": "64Mi"}},
+        {"name": "transfer-tmp", "emptyDir": {"sizeLimit": "16Mi"}},
+    ]:
+        fail("analysis Job volumes are invalid")
+
+
+def validate_analysis_input_container(container: Mapping[str, Any]) -> None:
+    """Validate the input initializer without predefining control-plane metadata."""
+    exact_keys(
+        container,
+        "analysis input container",
+        {
+            "name",
+            "image",
+            "imagePullPolicy",
+            "command",
+            "args",
+            "env",
+            "securityContext",
+            "resources",
+            "volumeMounts",
+        },
+    )
+    if (
+        container["name"] != "stage-inputs"
+        or container["image"] != TRANSFER_IMAGE
+        or container["imagePullPolicy"] != "IfNotPresent"
+        or container["command"] != ["/bin/sh", "-ec"]
+    ):
+        fail("analysis input container identity is invalid")
+
+    arguments = sequence(container["args"], "analysis input container args")
+    if len(arguments) != 1 or not isinstance(arguments[0], str):
+        fail("analysis input container must have one staging program")
+    program = arguments[0]
+    required_program_fragments = {
+        'case "$uri" in',
+        "s3://perfeng-artifacts/runs/*",
+        's3 cp "$uri" "$partial" --only-show-errors',
+        'test "$(wc -c < "$partial" | tr -d \'[:space:]\')" = "$expected_size"',
+        'printf \'%s  %s\\n\' "$expected_sha256" "$partial" | sha256sum -c -',
+        'mv "$partial" "$destination"',
+    }
+    required_program_fragments.update(f'"${name}"' for name in STAGING_ENVIRONMENT)
+    if any(fragment not in program for fragment in required_program_fragments):
+        fail("analysis input staging integrity checks are incomplete")
+
+    environment = sequence(container["env"], "analysis input container env")
+    variables = [mapping(item, "analysis input environment variable") for item in environment]
+    names = [variable.get("name") for variable in variables]
+    if any(name in STAGING_ENVIRONMENT for name in names):
+        fail("analysis template must not predefine reserved staging environment")
+    expected_names = [
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "PERFENG_S3_ENDPOINT",
+        "HOME",
+        "AWS_CONFIG_FILE",
+        "AWS_DEFAULT_REGION",
+        "AWS_EC2_METADATA_DISABLED",
+        "AWS_PAGER",
+        "AWS_MAX_ATTEMPTS",
+    ]
+    if names != expected_names:
+        fail("analysis input environment is invalid")
+    for variable, key in zip(variables[:2], ("access-key", "secret-key"), strict=True):
+        if variable != {
+            "name": variable["name"],
+            "valueFrom": {"secretKeyRef": {"name": "perfeng-s3-uploader-auth", "key": key}},
+        }:
+            fail("analysis input credentials are not the restricted uploader Secret")
+    values = {variable["name"]: variable.get("value") for variable in variables[2:]}
+    if values != {
+        "PERFENG_S3_ENDPOINT": "http://seaweedfs.perf-platform.svc.cluster.local:8333",
+        "HOME": "/tmp",
+        "AWS_CONFIG_FILE": "/tmp/awsconfig",
+        "AWS_DEFAULT_REGION": "us-east-1",
+        "AWS_EC2_METADATA_DISABLED": "true",
+        "AWS_PAGER": "",
+        "AWS_MAX_ATTEMPTS": "2",
+    }:
+        fail("analysis input storage configuration is invalid")
+    validate_analysis_container_policy(container, "input")
+    if container["volumeMounts"] != [
+        {"name": "analysis-input", "mountPath": "/workspace/input"},
+        {"name": "transfer-tmp", "mountPath": "/tmp"},
+    ]:
+        fail("analysis input volume mounts are invalid")
+
+
+def validate_analysis_normalizer(container: Mapping[str, Any]) -> None:
+    """Validate the credential-free normalizer placeholder replaced by the control plane."""
+    exact_keys(
+        container,
+        "analysis normalizer",
+        {
+            "name",
+            "image",
+            "imagePullPolicy",
+            "securityContext",
+            "resources",
+            "volumeMounts",
+        },
+    )
+    if (
+        container["name"] != "normalizer"
+        or container["image"] != ANALYSIS_IMAGE
+        or container["imagePullPolicy"] != "IfNotPresent"
+    ):
+        fail("analysis normalizer identity is invalid")
+    validate_analysis_container_policy(container, "normalizer")
+    if container["volumeMounts"] != [
+        {"name": "analysis-input", "mountPath": "/workspace/input", "readOnly": True},
+        {"name": "analysis-output", "mountPath": "/workspace/output"},
+    ]:
+        fail("analysis normalizer volume mounts are invalid")
+
+
+def validate_analysis_container_policy(container: Mapping[str, Any], name: str) -> None:
+    """Validate common non-privileged container and bounded-resource policy."""
+    if container["securityContext"] != {
+        "allowPrivilegeEscalation": False,
+        "readOnlyRootFilesystem": True,
+        "capabilities": {"drop": ["ALL"]},
+    }:
+        fail(f"analysis {name} security context is invalid")
+    resources = mapping(container["resources"], f"analysis {name} resources")
+    expected_resources = {
+        "input": {
+            "requests": {"cpu": "50m", "memory": "96Mi"},
+            "limits": {"cpu": "500m", "memory": "256Mi"},
+        },
+        "normalizer": {
+            "requests": {"cpu": "100m", "memory": "128Mi"},
+            "limits": {"cpu": "1", "memory": "512Mi"},
+        },
+    }
+    if resources != expected_resources[name]:
+        fail(f"analysis {name} resources are invalid")
+
+
 def validate_bundle() -> None:
     """Validate the repository-owned identities of the first runtime bundle."""
     registry = load_json(BUNDLE_ROOT / "registry.json")
@@ -432,6 +671,8 @@ def validate_bundle() -> None:
         "fingerprint": cluster.get("sha256"),
     }:
         fail("runtime bundle environment reference does not match its reviewed bytes")
+
+    validate_analysis_job()
 
 
 def validate() -> None:
