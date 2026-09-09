@@ -19,7 +19,12 @@ endpoint, transfer commands, scheduling and resource policy. A separate
 credential-bearing publisher waits for the atomic normalized output, writes the
 stable `runs/<run-id>/normalized-result.json` object conditionally, then reads it
 back and verifies its bytes and complete discovery metadata. The normalizer
-remains credential-free. The reporting template remains a separate rollout step.
+remains credential-free. The reviewed `jobs/reporting.yaml` template applies the
+same separation to reporting: it stages and verifies the candidate, exact policy
+and unique available baseline artifacts, runs the pinned reporter without storage
+credentials, and conditionally publishes and verifies `analysis-result/v1` at the
+stable Run key. The policy must first be seeded at
+`policies/<id>/<version>/performance-policy.json` in the configured artifact bucket.
 
 The environment identity records the exact `perfeng-environment` source revision
 and kind configuration checksum. Its fingerprint is the SHA-256 of those exact

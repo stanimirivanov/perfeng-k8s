@@ -36,6 +36,14 @@ normalized object without overwriting prior evidence, and verifies its stored
 bytes and discovery metadata. The template is composition input for the control
 plane and has no reusable Run identity of its own.
 
+The bundle also owns a reusable reporting Job template. Its initializer stages
+and verifies the selected normalized candidate, exact reviewed policy and unique
+available baseline artifacts from SeaweedFS. The credential-free reporter uses
+the pinned perfeng-analysis image, while a separate publisher conditionally
+creates and verifies the stable `analysis-result/v1` object. The reporter command,
+arguments and trusted staging metadata are supplied by the control plane at
+resolution time; the template owns transfer and publication commands.
+
 Deployable bundles will live under:
 
 ```text

@@ -145,6 +145,63 @@ class BenchmarkValidationTests(unittest.TestCase):
                 with self.assertRaisesRegex(validate.ValidationError, "restricted uploader"):
                     validate.validate_analysis_job()
 
+    def test_report_job_cannot_predefine_staging_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "reporting.yaml"
+            job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+            job["spec"]["template"]["spec"]["initContainers"][0]["env"].append(
+                {"name": "PERFENG_REPORT_REFERENCE_0_URI", "value": "s3://untrusted/input"}
+            )
+            job_path.write_text(yaml.safe_dump(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "reserved staging"):
+                    validate.validate_report_job()
+
+    def test_report_job_requires_download_integrity_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "reporting.yaml"
+            job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+            initializer = job["spec"]["template"]["spec"]["initContainers"][0]
+            initializer["args"][0] = initializer["args"][0].replace(
+                'test "$actual_size" -le 1048576', "true"
+            )
+            job_path.write_text(yaml.safe_dump(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "integrity checks"):
+                    validate.validate_report_job()
+
+    def test_report_publisher_cannot_overwrite_existing_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "reporting.yaml"
+            job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+            publisher = job["spec"]["template"]["spec"]["containers"][1]
+            publisher["args"][0] = publisher["args"][0].replace('--if-none-match "*"', "")
+            job_path.write_text(yaml.safe_dump(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(
+                    validate.ValidationError, "publication or verification"
+                ):
+                    validate.validate_report_job()
+
+    def test_report_stager_uses_only_restricted_storage_credentials(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "reporting.yaml"
+            job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+            credentials = job["spec"]["template"]["spec"]["initContainers"][0]["env"][0]
+            credentials["valueFrom"]["secretKeyRef"]["name"] = "perfeng-s3-auth"
+            job_path.write_text(yaml.safe_dump(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "restricted uploader"):
+                    validate.validate_report_job()
+
     def load_config(self) -> dict[str, Any]:
         return copy.deepcopy(
             yaml.safe_load((validate.WORKLOAD_ROOT / "config.yml").read_text(encoding="utf-8"))
