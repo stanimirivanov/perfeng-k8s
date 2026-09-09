@@ -116,6 +116,35 @@ class BenchmarkValidationTests(unittest.TestCase):
                 with self.assertRaisesRegex(validate.ValidationError, "integrity checks"):
                     validate.validate_analysis_job()
 
+    def test_analysis_publisher_cannot_overwrite_existing_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "analysis.yaml"
+            job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+            publisher = job["spec"]["template"]["spec"]["containers"][1]
+            publisher["args"][0] = publisher["args"][0].replace('--if-none-match "*"', "")
+            job_path.write_text(yaml.safe_dump(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(
+                    validate.ValidationError, "publication or verification"
+                ):
+                    validate.validate_analysis_job()
+
+    def test_analysis_publisher_uses_only_restricted_storage_credentials(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "analysis.yaml"
+            job = yaml.safe_load(job_path.read_text(encoding="utf-8"))
+            publisher = job["spec"]["template"]["spec"]["containers"][1]
+            credentials = publisher["env"][0]
+            credentials["valueFrom"]["secretKeyRef"]["name"] = "perfeng-s3-auth"
+            job_path.write_text(yaml.safe_dump(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "restricted uploader"):
+                    validate.validate_analysis_job()
+
     def load_config(self) -> dict[str, Any]:
         return copy.deepcopy(
             yaml.safe_load((validate.WORKLOAD_ROOT / "config.yml").read_text(encoding="utf-8"))

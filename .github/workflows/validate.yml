@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: stanimirivanov/perfeng-control-plane
-          ref: 3dfc773d30df59195807a2e09c92bf3add40e250
+          ref: b567499f7c2202bcfeb15131b28d9253f5a9737c
           path: .validation/perfeng-control-plane
           persist-credentials: false
       - name: Set up Go

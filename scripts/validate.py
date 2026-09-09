@@ -28,9 +28,9 @@ EXPECTED_IMAGE = (
 )
 ANALYSIS_IMAGE = (
     "ghcr.io/stanimirivanov/perfeng-analysis@sha256:"
-    "eb13b5d8074467fb23a1d10041f0f75606af192cd68385e30e56cd172d97b0ed"
+    "04b674c42861ab4178c0b57542eb5ab5cd8bf26052e3f51385985efb752d56ad"
 )
-ANALYSIS_REVISION = "cc7c84ba3e373aa3245a6091b3c24714fe2c37e8"
+ANALYSIS_REVISION = "4a55dbb993335652e56b49a966601420eaa905ba"
 ENVIRONMENT_REVISION = "e0b95cb10cdabb9be95543947b6552b51aa81832"
 TRANSFER_IMAGE = (
     "amazon/aws-cli:2.36.37@sha256:be6228bd99b4b0b9787543952aebfe93c66b5503121b68a724647c523c957a9d"
@@ -433,10 +433,11 @@ def validate_analysis_job() -> None:
 
     initializers = sequence(pod["initContainers"], "analysis initContainers")
     containers = sequence(pod["containers"], "analysis containers")
-    if len(initializers) != 1 or len(containers) != 1:
-        fail("analysis Job must contain one input initializer and one normalizer")
+    if len(initializers) != 1 or len(containers) != 2:
+        fail("analysis Job must contain one input initializer, normalizer and publisher")
     validate_analysis_input_container(mapping(initializers[0], "analysis input container"))
     validate_analysis_normalizer(mapping(containers[0], "analysis normalizer"))
+    validate_analysis_publisher(mapping(containers[1], "analysis publisher"))
 
     if pod["volumes"] != [
         {"name": "analysis-input", "emptyDir": {"sizeLimit": "64Mi"}},
@@ -558,6 +559,117 @@ def validate_analysis_normalizer(container: Mapping[str, Any]) -> None:
         fail("analysis normalizer volume mounts are invalid")
 
 
+def validate_analysis_publisher(container: Mapping[str, Any]) -> None:
+    """Validate duplicate-safe publication of the atomically completed output."""
+    exact_keys(
+        container,
+        "analysis publisher",
+        {
+            "name",
+            "image",
+            "imagePullPolicy",
+            "command",
+            "args",
+            "env",
+            "securityContext",
+            "resources",
+            "volumeMounts",
+        },
+    )
+    if (
+        container["name"] != "publish-output"
+        or container["image"] != TRANSFER_IMAGE
+        or container["imagePullPolicy"] != "IfNotPresent"
+        or container["command"] != ["/bin/sh", "-ec"]
+    ):
+        fail("analysis publisher identity is invalid")
+
+    arguments = sequence(container["args"], "analysis publisher args")
+    if len(arguments) != 1 or not isinstance(arguments[0], str):
+        fail("analysis publisher must have one publication program")
+    program = arguments[0]
+    required_program_fragments = {
+        'while [ ! -f "$output" ]',
+        'key="runs/$PERFENG_RUN_ID/normalized-result.json"',
+        'set -- $(sha256sum "$output")',
+        'artifact_id="$(cat /proc/sys/kernel/random/uuid)"',
+        '--if-none-match "*" --content-type application/json',
+        "artifact-id=$artifact_id,sha256=$sha256,format=normalized-result/v1",
+        'get-object --bucket perfeng-artifacts --key "$key"',
+        "grep -Eq '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'",
+        "--query ContentLength --output text",
+        "--query ContentType --output text",
+        "--query Metadata.sha256 --output text",
+        "--query Metadata.format --output text",
+    }
+    if any(fragment not in program for fragment in required_program_fragments):
+        fail("analysis output publication or verification is incomplete")
+
+    environment = sequence(container["env"], "analysis publisher env")
+    variables = [mapping(item, "analysis publisher environment variable") for item in environment]
+    names = [variable.get("name") for variable in variables]
+    expected_names = [
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "PERFENG_S3_ENDPOINT",
+        "PERFENG_RUN_ID",
+        "HOME",
+        "AWS_CONFIG_FILE",
+        "AWS_DEFAULT_REGION",
+        "AWS_EC2_METADATA_DISABLED",
+        "AWS_PAGER",
+        "AWS_MAX_ATTEMPTS",
+    ]
+    if names != expected_names:
+        fail("analysis publisher environment is invalid")
+    validate_uploader_credentials(variables[:2], "analysis publisher")
+    if variables[2:] != [
+        {
+            "name": "PERFENG_S3_ENDPOINT",
+            "value": "http://seaweedfs.perf-platform.svc.cluster.local:8333",
+        },
+        {
+            "name": "PERFENG_RUN_ID",
+            "valueFrom": {
+                "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "metadata.labels['perfeng.io/run-id']",
+                }
+            },
+        },
+        {"name": "HOME", "value": "/tmp"},
+        {"name": "AWS_CONFIG_FILE", "value": "/tmp/awsconfig"},
+        {"name": "AWS_DEFAULT_REGION", "value": "us-east-1"},
+        {"name": "AWS_EC2_METADATA_DISABLED", "value": "true"},
+        {"name": "AWS_PAGER", "value": ""},
+        {"name": "AWS_MAX_ATTEMPTS", "value": "2"},
+    ]:
+        fail("analysis publisher storage or Run identity configuration is invalid")
+    validate_analysis_container_policy(container, "publisher")
+    if container["volumeMounts"] != [
+        {"name": "analysis-output", "mountPath": "/workspace/output", "readOnly": True},
+        {"name": "transfer-tmp", "mountPath": "/tmp"},
+    ]:
+        fail("analysis publisher volume mounts are invalid")
+
+
+def validate_uploader_credentials(
+    variables: list[Mapping[str, Any]],
+    location: str,
+) -> None:
+    """Require only the restricted uploader access and secret key references."""
+    expected = (
+        ("AWS_ACCESS_KEY_ID", "access-key"),
+        ("AWS_SECRET_ACCESS_KEY", "secret-key"),
+    )
+    for variable, (name, key) in zip(variables, expected, strict=True):
+        if variable != {
+            "name": name,
+            "valueFrom": {"secretKeyRef": {"name": "perfeng-s3-uploader-auth", "key": key}},
+        }:
+            fail(f"{location} credentials are not the restricted uploader Secret")
+
+
 def validate_analysis_container_policy(container: Mapping[str, Any], name: str) -> None:
     """Validate common non-privileged container and bounded-resource policy."""
     if container["securityContext"] != {
@@ -575,6 +687,10 @@ def validate_analysis_container_policy(container: Mapping[str, Any], name: str) 
         "normalizer": {
             "requests": {"cpu": "100m", "memory": "128Mi"},
             "limits": {"cpu": "1", "memory": "512Mi"},
+        },
+        "publisher": {
+            "requests": {"cpu": "50m", "memory": "96Mi"},
+            "limits": {"cpu": "500m", "memory": "256Mi"},
         },
     }
     if resources != expected_resources[name]:
@@ -627,14 +743,14 @@ def validate_bundle() -> None:
     for field in ("normalizerProducer", "reportProducer"):
         if entry.get(field) != {
             "name": "perfeng-analysis",
-            "version": "0.8.0",
+            "version": "0.8.1",
             "image": ANALYSIS_IMAGE,
         }:
             fail(f"runtime bundle {field} is not the verified analysis image")
     if analysis != {
         "schemaVersion": 1,
         "name": "perfeng-analysis",
-        "version": "0.8.0",
+        "version": "0.8.1",
         "image": ANALYSIS_IMAGE,
         "source": {
             "repository": "https://github.com/stanimirivanov/perfeng-analysis",

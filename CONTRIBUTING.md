@@ -52,7 +52,7 @@ From this repository in PowerShell:
 ```powershell
 $fixtureRoot = (Resolve-Path testdata/runtime-registry).Path
 $bundleRoot = (Resolve-Path bundles/local-kind-windows/1.0.0).Path
-git -C ../perfeng-control-plane checkout 3dfc773d30df59195807a2e09c92bf3add40e250
+git -C ../perfeng-control-plane checkout b567499f7c2202bcfeb15131b28d9253f5a9737c
 go -C ../perfeng-control-plane run ./cmd/validate-registry -root $fixtureRoot -manifest registry.json
 go -C ../perfeng-control-plane run ./cmd/validate-registry -root $bundleRoot -manifest registry.json
 ```
