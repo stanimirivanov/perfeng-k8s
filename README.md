@@ -19,7 +19,7 @@ and in `perfeng-environment`.
 The fixture under `testdata` is intentionally synthetic and must never be
 deployed. The first reviewed bundle under
 `bundles/local-kind-windows/1.0.0` binds the native Windows pod-startup flow to
-the verified perfeng-analysis 0.8.0 image. It is a local integration bundle, not
+the verified perfeng-analysis 0.8.1 image. It is a local integration bundle, not
 a production or shared-environment promotion.
 
 The first owned platform workload is a bounded pod-startup benchmark under
@@ -30,9 +30,11 @@ performance threshold.
 
 The local bundle also owns a reusable analysis Job template. A restricted
 init container materializes and verifies the control-plane-selected raw inputs;
-the approved normalizer never receives object-storage credentials. The template
-is composition input for the control plane and has no reusable Run identity of
-its own.
+the approved normalizer never receives object-storage credentials. A separate
+publisher waits for the atomically completed output, creates the deterministic
+normalized object without overwriting prior evidence, and verifies its stored
+bytes and discovery metadata. The template is composition input for the control
+plane and has no reusable Run identity of its own.
 
 Deployable bundles will live under:
 
