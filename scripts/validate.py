@@ -47,6 +47,24 @@ STAGING_ENVIRONMENT = {
     "PERFENG_SOURCE_SIZE_BYTES",
     "PERFENG_SOURCE_PATH",
 }
+REPORT_STAGING_ENVIRONMENT = {
+    "PERFENG_REPORT_CANDIDATE_ARTIFACT_ID",
+    "PERFENG_REPORT_CANDIDATE_RUN_ID",
+    "PERFENG_REPORT_CANDIDATE_KIND",
+    "PERFENG_REPORT_CANDIDATE_URI",
+    "PERFENG_REPORT_CANDIDATE_SHA256",
+    "PERFENG_REPORT_CANDIDATE_SIZE_BYTES",
+    "PERFENG_REPORT_CANDIDATE_MEDIA_TYPE",
+    "PERFENG_REPORT_CANDIDATE_FORMAT",
+    "PERFENG_REPORT_CANDIDATE_PATH",
+    "PERFENG_REPORT_CANDIDATE_REFERENCE_PATH",
+    "PERFENG_REPORT_POLICY_ID",
+    "PERFENG_REPORT_POLICY_VERSION",
+    "PERFENG_REPORT_POLICY_SHA256",
+    "PERFENG_REPORT_POLICY_PATH",
+    "PERFENG_REPORT_REFERENCE_COUNT",
+}
+REPORT_REFERENCE_PREFIX = "PERFENG_REPORT_REFERENCE_"
 
 
 class ValidationError(ValueError):
@@ -697,6 +715,332 @@ def validate_analysis_container_policy(container: Mapping[str, Any], name: str) 
         fail(f"analysis {name} resources are invalid")
 
 
+def validate_report_job() -> None:
+    """Validate the reviewed reusable reporting Job template."""
+    job = load_yaml(BUNDLE_ROOT / "jobs" / "reporting.yaml")
+    exact_keys(job, "reporting Job", {"apiVersion", "kind", "metadata", "spec"})
+    if job["apiVersion"] != "batch/v1" or job["kind"] != "Job":
+        fail("reporting template must contain one batch/v1 Job")
+
+    labels = {
+        "app.kubernetes.io/name": "perfeng-analysis",
+        "app.kubernetes.io/component": "reporting",
+    }
+    metadata = mapping(job["metadata"], "reporting Job metadata")
+    if metadata != {"labels": labels}:
+        fail("reporting Job must remain reusable and carry only reviewed labels")
+
+    spec = mapping(job["spec"], "reporting Job spec")
+    exact_keys(
+        spec,
+        "reporting Job spec",
+        {"backoffLimit", "completions", "parallelism", "activeDeadlineSeconds", "template"},
+    )
+    if (
+        spec["backoffLimit"] != 0
+        or spec["completions"] != 1
+        or spec["parallelism"] != 1
+        or spec["activeDeadlineSeconds"] != 600
+    ):
+        fail("reporting Job execution bounds are invalid")
+
+    template = mapping(spec["template"], "reporting Pod template")
+    exact_keys(template, "reporting Pod template", {"metadata", "spec"})
+    if template["metadata"] != {"labels": labels}:
+        fail("reporting Pod labels are invalid")
+    pod = mapping(template["spec"], "reporting Pod spec")
+    exact_keys(
+        pod,
+        "reporting Pod spec",
+        {
+            "restartPolicy",
+            "automountServiceAccountToken",
+            "enableServiceLinks",
+            "nodeSelector",
+            "tolerations",
+            "securityContext",
+            "initContainers",
+            "containers",
+            "volumes",
+        },
+    )
+    if (
+        pod["restartPolicy"] != "Never"
+        or pod["automountServiceAccountToken"] is not False
+        or pod["enableServiceLinks"] is not False
+        or pod["nodeSelector"] != {"kubernetes.io/os": "linux", "workload": "control-plane"}
+    ):
+        fail("reporting Pod scheduling or service-account policy is invalid")
+    if pod["tolerations"] != [
+        {
+            "key": "node-role.kubernetes.io/control-plane",
+            "operator": "Exists",
+            "effect": "NoSchedule",
+        }
+    ]:
+        fail("reporting Pod tolerations are invalid")
+    if pod["securityContext"] != {
+        "runAsNonRoot": True,
+        "runAsUser": 65532,
+        "runAsGroup": 65532,
+        "fsGroup": 65532,
+        "fsGroupChangePolicy": "OnRootMismatch",
+        "seccompProfile": {"type": "RuntimeDefault"},
+    }:
+        fail("reporting Pod security context is invalid")
+
+    initializers = sequence(pod["initContainers"], "reporting initContainers")
+    containers = sequence(pod["containers"], "reporting containers")
+    if len(initializers) != 1 or len(containers) != 2:
+        fail("reporting Job must contain one input initializer, reporter and publisher")
+    validate_report_input_container(mapping(initializers[0], "report input container"))
+    validate_reporter(mapping(containers[0], "reporter container"))
+    validate_report_publisher(mapping(containers[1], "report publisher container"))
+
+    if pod["volumes"] != [
+        {"name": "report-input", "emptyDir": {"sizeLimit": "64Mi"}},
+        {"name": "report-output", "emptyDir": {"sizeLimit": "64Mi"}},
+        {"name": "transfer-tmp", "emptyDir": {"sizeLimit": "16Mi"}},
+    ]:
+        fail("reporting Job volumes are invalid")
+
+
+def validate_report_input_container(container: Mapping[str, Any]) -> None:
+    """Validate verified candidate, policy and reference materialization."""
+    exact_keys(
+        container,
+        "report input container",
+        {
+            "name",
+            "image",
+            "imagePullPolicy",
+            "command",
+            "args",
+            "env",
+            "securityContext",
+            "resources",
+            "volumeMounts",
+        },
+    )
+    if (
+        container["name"] != "stage-inputs"
+        or container["image"] != TRANSFER_IMAGE
+        or container["imagePullPolicy"] != "IfNotPresent"
+        or container["command"] != ["/bin/sh", "-euc"]
+    ):
+        fail("report input container identity is invalid")
+
+    arguments = sequence(container["args"], "report input container args")
+    if len(arguments) != 1 or not isinstance(arguments[0], str):
+        fail("report input container must have one staging program")
+    program = arguments[0]
+    required_program_fragments = {
+        "s3://perfeng-artifacts/runs/*|s3://perfeng-artifacts/policies/*",
+        's3 cp "$uri" "$partial" --only-show-errors',
+        'test "$actual_size" = "$expected_size"',
+        'test "$actual_size" -le 1048576',
+        'printf \'%s  %s\\n\' "$expected_sha256" "$partial" | sha256sum -c -',
+        'policy_uri="s3://perfeng-artifacts/policies/',
+        'printenv "${prefix}ARTIFACT_ID"',
+        'printenv "${prefix}URI"',
+        'printenv "${prefix}SHA256"',
+        'printenv "${prefix}SIZE_BYTES"',
+        'printenv "${prefix}PATH"',
+        'printenv "${prefix}REFERENCE_PATH"',
+        'printenv "${prefix}ARTIFACT_BASE64"',
+        'base64 -d > "$partial"',
+        'mv "$partial" "$destination"',
+    }
+    required_program_fragments.update(f'"${name}"' for name in REPORT_STAGING_ENVIRONMENT)
+    if any(fragment not in program for fragment in required_program_fragments):
+        fail("report input staging integrity checks are incomplete")
+
+    environment = sequence(container["env"], "report input container env")
+    variables = [mapping(item, "report input environment variable") for item in environment]
+    names = [variable.get("name") for variable in variables]
+    if any(
+        name in REPORT_STAGING_ENVIRONMENT
+        or (isinstance(name, str) and name.startswith(REPORT_REFERENCE_PREFIX))
+        for name in names
+    ):
+        fail("report template must not predefine reserved staging environment")
+    expected_names = [
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "PERFENG_S3_ENDPOINT",
+        "HOME",
+        "AWS_CONFIG_FILE",
+        "AWS_DEFAULT_REGION",
+        "AWS_EC2_METADATA_DISABLED",
+        "AWS_PAGER",
+        "AWS_MAX_ATTEMPTS",
+    ]
+    if names != expected_names:
+        fail("report input environment is invalid")
+    validate_uploader_credentials(variables[:2], "report input")
+    if variables[2:] != [
+        {
+            "name": "PERFENG_S3_ENDPOINT",
+            "value": "http://seaweedfs.perf-platform.svc.cluster.local:8333",
+        },
+        {"name": "HOME", "value": "/tmp"},
+        {"name": "AWS_CONFIG_FILE", "value": "/tmp/awsconfig"},
+        {"name": "AWS_DEFAULT_REGION", "value": "us-east-1"},
+        {"name": "AWS_EC2_METADATA_DISABLED", "value": "true"},
+        {"name": "AWS_PAGER", "value": ""},
+        {"name": "AWS_MAX_ATTEMPTS", "value": "2"},
+    ]:
+        fail("report input storage configuration is invalid")
+    validate_report_container_policy(container, "input")
+    if container["volumeMounts"] != [
+        {"name": "report-input", "mountPath": "/workspace/input"},
+        {"name": "transfer-tmp", "mountPath": "/tmp"},
+    ]:
+        fail("report input volume mounts are invalid")
+
+
+def validate_reporter(container: Mapping[str, Any]) -> None:
+    """Validate the credential-free reporter placeholder replaced by the control plane."""
+    exact_keys(
+        container,
+        "reporter container",
+        {"name", "image", "imagePullPolicy", "securityContext", "resources", "volumeMounts"},
+    )
+    if (
+        container["name"] != "reporter"
+        or container["image"] != ANALYSIS_IMAGE
+        or container["imagePullPolicy"] != "IfNotPresent"
+    ):
+        fail("reporter identity is invalid")
+    validate_report_container_policy(container, "reporter")
+    if container["volumeMounts"] != [
+        {"name": "report-input", "mountPath": "/workspace/input", "readOnly": True},
+        {"name": "report-output", "mountPath": "/workspace/output"},
+    ]:
+        fail("reporter volume mounts are invalid")
+
+
+def validate_report_publisher(container: Mapping[str, Any]) -> None:
+    """Validate duplicate-safe publication of the completed report."""
+    exact_keys(
+        container,
+        "report publisher container",
+        {
+            "name",
+            "image",
+            "imagePullPolicy",
+            "command",
+            "args",
+            "env",
+            "securityContext",
+            "resources",
+            "volumeMounts",
+        },
+    )
+    if (
+        container["name"] != "publish-output"
+        or container["image"] != TRANSFER_IMAGE
+        or container["imagePullPolicy"] != "IfNotPresent"
+        or container["command"] != ["/bin/sh", "-euc"]
+    ):
+        fail("report publisher identity is invalid")
+
+    arguments = sequence(container["args"], "report publisher args")
+    if len(arguments) != 1 or not isinstance(arguments[0], str):
+        fail("report publisher must have one publication program")
+    program = arguments[0]
+    required_program_fragments = {
+        'while [ ! -f "$output" ]',
+        'key="runs/$PERFENG_RUN_ID/analysis-result.json"',
+        'set -- $(sha256sum "$output")',
+        'artifact_id="$(cat /proc/sys/kernel/random/uuid)"',
+        '--if-none-match "*" --content-type application/json',
+        "artifact-id=$artifact_id,sha256=$sha256,format=analysis-result/v1",
+        'get-object --bucket perfeng-artifacts --key "$key"',
+        "grep -Eq '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'",
+        "--query ContentLength --output text",
+        "--query ContentType --output text",
+        "--query Metadata.sha256 --output text",
+        "--query Metadata.format --output text",
+    }
+    if any(fragment not in program for fragment in required_program_fragments):
+        fail("report output publication or verification is incomplete")
+
+    environment = sequence(container["env"], "report publisher env")
+    variables = [mapping(item, "report publisher environment variable") for item in environment]
+    names = [variable.get("name") for variable in variables]
+    expected_names = [
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "PERFENG_S3_ENDPOINT",
+        "PERFENG_RUN_ID",
+        "HOME",
+        "AWS_CONFIG_FILE",
+        "AWS_DEFAULT_REGION",
+        "AWS_EC2_METADATA_DISABLED",
+        "AWS_PAGER",
+        "AWS_MAX_ATTEMPTS",
+    ]
+    if names != expected_names:
+        fail("report publisher environment is invalid")
+    validate_uploader_credentials(variables[:2], "report publisher")
+    if variables[2:] != [
+        {
+            "name": "PERFENG_S3_ENDPOINT",
+            "value": "http://seaweedfs.perf-platform.svc.cluster.local:8333",
+        },
+        {
+            "name": "PERFENG_RUN_ID",
+            "valueFrom": {
+                "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "metadata.labels['perfeng.io/run-id']",
+                }
+            },
+        },
+        {"name": "HOME", "value": "/tmp"},
+        {"name": "AWS_CONFIG_FILE", "value": "/tmp/awsconfig"},
+        {"name": "AWS_DEFAULT_REGION", "value": "us-east-1"},
+        {"name": "AWS_EC2_METADATA_DISABLED", "value": "true"},
+        {"name": "AWS_PAGER", "value": ""},
+        {"name": "AWS_MAX_ATTEMPTS", "value": "2"},
+    ]:
+        fail("report publisher storage or Run identity configuration is invalid")
+    validate_report_container_policy(container, "publisher")
+    if container["volumeMounts"] != [
+        {"name": "report-output", "mountPath": "/workspace/output", "readOnly": True},
+        {"name": "transfer-tmp", "mountPath": "/tmp"},
+    ]:
+        fail("report publisher volume mounts are invalid")
+
+
+def validate_report_container_policy(container: Mapping[str, Any], name: str) -> None:
+    """Validate reporting container security and bounded resources."""
+    if container["securityContext"] != {
+        "allowPrivilegeEscalation": False,
+        "readOnlyRootFilesystem": True,
+        "capabilities": {"drop": ["ALL"]},
+    }:
+        fail(f"report {name} security context is invalid")
+    resources = mapping(container["resources"], f"report {name} resources")
+    expected_resources = {
+        "input": {
+            "requests": {"cpu": "50m", "memory": "96Mi"},
+            "limits": {"cpu": "500m", "memory": "256Mi"},
+        },
+        "reporter": {
+            "requests": {"cpu": "100m", "memory": "128Mi"},
+            "limits": {"cpu": "1", "memory": "512Mi"},
+        },
+        "publisher": {
+            "requests": {"cpu": "50m", "memory": "96Mi"},
+            "limits": {"cpu": "500m", "memory": "256Mi"},
+        },
+    }
+    if resources != expected_resources[name]:
+        fail(f"report {name} resources are invalid")
+
+
 def validate_bundle() -> None:
     """Validate the repository-owned identities of the first runtime bundle."""
     registry = load_json(BUNDLE_ROOT / "registry.json")
@@ -789,6 +1133,7 @@ def validate_bundle() -> None:
         fail("runtime bundle environment reference does not match its reviewed bytes")
 
     validate_analysis_job()
+    validate_report_job()
 
 
 def validate() -> None:
