@@ -6,6 +6,12 @@ Keep deployment changes reviewable and reversible. A pull request should promote
 one coherent set of immutable component and configuration identities. Do not mix
 runtime promotion with unrelated repository tooling or local-development changes.
 
+Reusable charts must not invent an environment selection. Require callers to
+supply immutable component digests and named external configuration. Do not
+create credentials, authentication documents or runtime Secrets in this
+repository. Grant the control plane only the namespaced Kubernetes operations
+used by its reviewed client interfaces.
+
 A deployable bundle must contain real, independently verifiable identities:
 
 - use the final registry manifest digest printed by each publisher workflow;
@@ -22,7 +28,7 @@ configuration. Never copy a fixture into `bundles` and call it deployable.
 ## Local validation
 
 Use Python 3.12 and the locked uv environment for repository-owned benchmark
-definitions:
+definitions. Install Helm for chart linting and rendering:
 
 ```sh
 uv sync --locked
@@ -46,6 +52,12 @@ commit and preserve imported schema bytes exactly.
 The validator revision used by CI is pinned in
 `.github/workflows/validate.yml`. Check out that revision in the adjacent
 `perfeng-control-plane` repository before reproducing CI locally.
+
+Because component repositories are private, the `perfeng-k8s` repository must
+define the Actions secret `PERFENG_REPOSITORIES_READ_TOKEN`. Use a fine-grained,
+expiring token restricted to read-only Contents access for the selected
+`perfeng-control-plane` repository. The workflow uses it only for the pinned
+validator checkout and does not persist its credentials.
 
 From this repository in PowerShell:
 

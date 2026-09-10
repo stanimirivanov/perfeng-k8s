@@ -1,0 +1,10 @@
+image: ghcr.io/stanimirivanov/perfeng-control-plane@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+executionNamespace: perf-generators
+runtimeConfigMap: perfeng-control-plane-runtime
+runtimeSecret: perfeng-control-plane-runtime
+authenticationSecret: perfeng-control-plane-authentication
+registryConfigMap: perfeng-runtime-registry
+registryItems:
+  - {key: registry.json, path: registry.json}
+  - {key: analysis-job.yaml, path: jobs/analysis.yaml}
+  - {key: reporting-job.yaml, path: jobs/reporting.yaml}

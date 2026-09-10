@@ -1,0 +1,113 @@
+{{- range .Values.registryItems }}
+{{- if or (hasPrefix "/" .path) (contains ".." .path) }}
+{{- fail "registry item paths must be relative and cannot contain '..'" }}
+{{- end }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: perfeng-control-plane
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: perfeng-control-plane
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: perfeng-control-plane
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      automountServiceAccountToken: true
+      nodeSelector:
+        workload: control-plane
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: control-plane
+          image: {{ required "image digest is required" .Values.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ required "runtimeConfigMap is required" .Values.runtimeConfigMap }}
+            - secretRef:
+                name: {{ required "runtimeSecret is required" .Values.runtimeSecret }}
+          env:
+            - name: PERFENG_HTTP_ADDRESS
+              value: ":{{ .Values.httpPort }}"
+            - name: PERFENG_WORKER_ID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: PERFENG_KUBERNETES_NAMESPACE
+              value: {{ required "executionNamespace is required" .Values.executionNamespace | quote }}
+            - name: PERFENG_AUTHENTICATION_FILE
+              value: /etc/perfeng/auth/credentials.json
+            - name: PERFENG_REGISTRY_ROOT
+              value: /etc/perfeng/registry
+            - name: PERFENG_REGISTRY_MANIFEST
+              value: registry.json
+            - name: PERFENG_ANALYSIS_JOB_FILE
+              value: /etc/perfeng/registry/jobs/analysis.yaml
+            - name: PERFENG_REPORT_JOB_FILE
+              value: /etc/perfeng/registry/jobs/reporting.yaml
+          ports:
+            - name: http
+              containerPort: {{ .Values.httpPort }}
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: authentication
+              mountPath: /etc/perfeng/auth
+              readOnly: true
+            - name: registry
+              mountPath: /etc/perfeng/registry
+              readOnly: true
+      volumes:
+        - name: authentication
+          secret:
+            secretName: {{ required "authenticationSecret is required" .Values.authenticationSecret }}
+            items:
+              - key: {{ .Values.authenticationSecretKey }}
+                path: credentials.json
+        - name: registry
+          configMap:
+            name: {{ required "registryConfigMap is required" .Values.registryConfigMap }}
+            items:
+              {{- range .Values.registryItems }}
+              - key: {{ .key }}
+                path: {{ .path }}
+              {{- end }}

@@ -51,6 +51,14 @@ the credential-free runner from the restricted publisher, and publishes a
 checksum-verified raw-result/v2 completion marker for collection by the control
 plane.
 
+The `charts/control-plane` package defines the reusable service workload and its
+least-privilege execution-namespace RBAC. It requires an immutable GHCR digest
+and references externally managed runtime configuration, credentials,
+authentication and reviewed-registry objects. The chart never creates Secrets
+or ConfigMaps, and its synthetic rendering values under `testdata` are not a
+deployment selection. `perfeng-environment` must supply the real image digest
+and configuration when composing an environment.
+
 Deployable bundles will live under:
 
 ```text
@@ -83,6 +91,10 @@ uv run --locked ty check
 uv run --locked python -m unittest discover -s tests -v
 uv run --locked python -m scripts.validate
 ```
+
+Chart validation also requires Helm. It renders the control-plane package with
+non-deployable test values and checks the workload identity, security context,
+external mounts, Service and exact cross-namespace permissions.
 
 The pod-startup command defaults to a non-mutating preview. See
 [the benchmark guide](docs/pod-startup.md) for its explicit execution and
