@@ -46,6 +46,7 @@ jobs:
         with:
           repository: stanimirivanov/perfeng-control-plane
           ref: 403e2f2dd0c07854593020b6f8da4979d808b21d
+          token: ${{ secrets.PERFENG_REPOSITORIES_READ_TOKEN }}
           path: .validation/perfeng-control-plane
           persist-credentials: false
       - name: Set up Go

@@ -53,6 +53,12 @@ The validator revision used by CI is pinned in
 `.github/workflows/validate.yml`. Check out that revision in the adjacent
 `perfeng-control-plane` repository before reproducing CI locally.
 
+Because component repositories are private, the `perfeng-k8s` repository must
+define the Actions secret `PERFENG_REPOSITORIES_READ_TOKEN`. Use a fine-grained,
+expiring token restricted to read-only Contents access for the selected
+`perfeng-control-plane` repository. The workflow uses it only for the pinned
+validator checkout and does not persist its credentials.
+
 From this repository in PowerShell:
 
 ```powershell
