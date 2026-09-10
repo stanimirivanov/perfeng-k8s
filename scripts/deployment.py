@@ -155,6 +155,24 @@ def validate_control_plane_chart() -> None:
         "limits": {"cpu": "1", "memory": "512Mi"},
     }:
         fail("control-plane container resources are invalid")
+    if container.get("startupProbe") != {
+        "httpGet": {"path": "/livez", "port": "http"},
+        "periodSeconds": 2,
+        "failureThreshold": 30,
+    }:
+        fail("control-plane startup probe is invalid")
+    if container.get("readinessProbe") != {
+        "httpGet": {"path": "/readyz", "port": "http"},
+        "periodSeconds": 5,
+        "failureThreshold": 2,
+    }:
+        fail("control-plane readiness probe is invalid")
+    if container.get("livenessProbe") != {
+        "httpGet": {"path": "/livez", "port": "http"},
+        "periodSeconds": 10,
+        "failureThreshold": 3,
+    }:
+        fail("control-plane liveness probe is invalid")
 
     environment = {
         item["name"]: item

@@ -68,17 +68,20 @@ spec:
             - name: http
               containerPort: {{ .Values.httpPort }}
           startupProbe:
-            tcpSocket:
+            httpGet:
+              path: /livez
               port: http
             periodSeconds: 2
             failureThreshold: 30
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /readyz
               port: http
             periodSeconds: 5
             failureThreshold: 2
           livenessProbe:
-            tcpSocket:
+            httpGet:
+              path: /livez
               port: http
             periodSeconds: 10
             failureThreshold: 3
