@@ -76,6 +76,32 @@ class BenchmarkValidationTests(unittest.TestCase):
                 with self.assertRaisesRegex(validate.ValidationError, "verified analysis image"):
                     validate.validate_bundle()
 
+    def test_execution_job_uses_the_verified_runner_and_fixed_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "execution.json"
+            job = json.loads(job_path.read_text(encoding="utf-8"))
+            runner = job["spec"]["template"]["spec"]["initContainers"][0]
+            runner["env"][0]["value"] = "https://unreviewed.example"
+            job_path.write_text(json.dumps(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "target"):
+                    validate.validate_execution_job()
+
+    def test_execution_job_requires_immutable_raw_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            job_path = bundle / "jobs" / "execution.json"
+            job = json.loads(job_path.read_text(encoding="utf-8"))
+            publisher = job["spec"]["template"]["spec"]["containers"][0]
+            publisher["args"][0] = publisher["args"][0].replace('--if-none-match "*"', "")
+            job_path.write_text(json.dumps(job), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "publication"):
+                    validate.validate_execution_job()
+
     def test_analysis_job_cannot_predefine_staging_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             bundle = self.copy_bundle(Path(directory))
