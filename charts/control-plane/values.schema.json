@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "replicas",
+    "image",
+    "imagePullPolicy",
+    "executionNamespace",
+    "runtimeConfigMap",
+    "runtimeSecret",
+    "authenticationSecret",
+    "authenticationSecretKey",
+    "registryConfigMap",
+    "registryItems",
+    "httpPort",
+    "terminationGracePeriodSeconds",
+    "resources"
+  ],
+  "properties": {
+    "replicas": {"type": "integer", "minimum": 1, "maximum": 3},
+    "image": {
+      "type": "string",
+      "pattern": "^ghcr\\.io/stanimirivanov/perfeng-control-plane@sha256:[0-9a-f]{64}$"
+    },
+    "imagePullPolicy": {"const": "IfNotPresent"},
+    "executionNamespace": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"},
+    "runtimeConfigMap": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"},
+    "runtimeSecret": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"},
+    "authenticationSecret": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"},
+    "authenticationSecretKey": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "registryConfigMap": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"},
+    "registryItems": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "path"],
+        "properties": {
+          "key": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+          "path": {"type": "string", "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"}
+        }
+      }
+    },
+    "httpPort": {"type": "integer", "minimum": 1024, "maximum": 65535},
+    "terminationGracePeriodSeconds": {"type": "integer", "minimum": 10, "maximum": 300},
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requests", "limits"],
+      "properties": {
+        "requests": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cpu", "memory"],
+          "properties": {
+            "cpu": {"type": "string"},
+            "memory": {"type": "string"}
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cpu", "memory"],
+          "properties": {
+            "cpu": {"type": "string"},
+            "memory": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

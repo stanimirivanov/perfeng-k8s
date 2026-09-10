@@ -12,7 +12,7 @@ from typing import Any, Never
 
 import yaml
 
-from scripts import contracts
+from scripts import contracts, deployment
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD_ROOT = ROOT / "workloads" / "pod-startup"
@@ -1453,13 +1453,14 @@ def validate() -> None:
     validate_release()
     validate_workload()
     validate_bundle()
+    deployment.validate_control_plane_chart()
 
 
 def main() -> int:
     """Run validation with stable, non-sensitive diagnostics."""
     try:
         validate()
-    except ValidationError as error:
+    except (ValidationError, deployment.DeploymentValidationError) as error:
         print(f"Kubernetes benchmark validation failed: {error}", file=sys.stderr)
         return 1
     print("Kubernetes benchmark definitions are valid.")
