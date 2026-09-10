@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "policy": "policies/pod-startup.json",
+      "testId": "pod-startup-k8s",
+      "contractsVersion": "0.13.0",
+      "catalogue": {
+        "id": "platform-tests",
+        "version": "1.1.0",
+        "sha256": "45d54bad14463a017fe69cf68ee0faadc7832424a3f27c977646c330f3ce563a"
+      },
+      "profile": "smoke",
+      "rawProducer": {
+        "name": "kube-burner",
+        "version": "2.8.5",
+        "artifact": {
+          "kind": "release-archive",
+          "url": "https://github.com/kube-burner/kube-burner/releases/download/v2.8.5/kube-burner-V2.8.5-windows-x86_64.zip",
+          "archiveSha256": "acd855bcc495bdcccc2254864828dddaf719bb0db071b872d85aa40245c14adc",
+          "executableSha256": "68441b715705dc7f4c5ecfa935e9cb54f2153284eda94f4941f015a78cee022f"
+        }
+      },
+      "normalizerProducer": {
+        "name": "perfeng-analysis",
+        "version": "0.8.1",
+        "image": "ghcr.io/stanimirivanov/perfeng-analysis@sha256:04b674c42861ab4178c0b57542eb5ab5cd8bf26052e3f51385985efb752d56ad"
+      },
+      "normalization": {
+        "sourceFormat": "kube-burner-pod-latency-json",
+        "layout": ""
+      },
+      "reportProducer": {
+        "name": "perfeng-analysis",
+        "version": "0.8.1",
+        "image": "ghcr.io/stanimirivanov/perfeng-analysis@sha256:04b674c42861ab4178c0b57542eb5ab5cd8bf26052e3f51385985efb752d56ad"
+      },
+      "workload": {
+        "id": "pod-startup-smoke",
+        "version": "1.0.0",
+        "sha256": "5474762558361b07efebd56e9b5b6e48e3c4030104565b26cb8c4fbe968a8113"
+      },
+      "environment": {
+        "id": "local-kind-windows",
+        "version": "1.0.0",
+        "sha256": "d3aa4b6ca9a12408f71308907baf3da74946f6ac88cba496473e0eeb60ecea76",
+        "fingerprint": "3a9ca267ed30879e301a640ec7091552878af5f5d0abe2c06c5c8ad4538752d5"
+      },
+      "dataset": {
+        "kind": "none"
+      },
+      "candidateImages": [
+        "registry.k8s.io/pause:3.10.1@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c"
+      ],
+      "principals": [
+        "local-operator"
+      ]
+    },
+    {
+      "policy": "policies/checkout-smoke.json",
+      "testId": "checkout-api",
+      "contractsVersion": "0.13.0",
+      "catalogue": {
+        "id": "platform-tests",
+        "version": "1.1.0",
+        "sha256": "45d54bad14463a017fe69cf68ee0faadc7832424a3f27c977646c330f3ce563a"
+      },
+      "profile": "smoke",
+      "rawProducer": {
+        "name": "k6",
+        "version": "2.2.0",
+        "artifact": {
+          "kind": "oci-image",
+          "image": "ghcr.io/stanimirivanov/perfeng-k6@sha256:f40f15780dd4eb8124a327c5d7a051848276494bec77f2c18590520be5c5c962"
+        }
+      },
+      "normalizerProducer": {
+        "name": "perfeng-analysis",
+        "version": "0.8.1",
+        "image": "ghcr.io/stanimirivanov/perfeng-analysis@sha256:04b674c42861ab4178c0b57542eb5ab5cd8bf26052e3f51385985efb752d56ad"
+      },
+      "normalization": {
+        "sourceFormat": "k6-summary-json",
+        "layout": "legacy-export"
+      },
+      "reportProducer": {
+        "name": "perfeng-analysis",
+        "version": "0.8.1",
+        "image": "ghcr.io/stanimirivanov/perfeng-analysis@sha256:04b674c42861ab4178c0b57542eb5ab5cd8bf26052e3f51385985efb752d56ad"
+      },
+      "executionTemplate": "jobs/execution.json",
+      "workload": {
+        "id": "checkout-smoke",
+        "version": "1.0.0",
+        "sha256": "a051d5beba6b0631e9592cf28148aec32f4b396f79d2ed5268b318ec1191ce0c"
+      },
+      "environment": {
+        "id": "local-kind-windows",
+        "version": "1.0.0",
+        "sha256": "d3aa4b6ca9a12408f71308907baf3da74946f6ac88cba496473e0eeb60ecea76",
+        "fingerprint": "3a9ca267ed30879e301a640ec7091552878af5f5d0abe2c06c5c8ad4538752d5"
+      },
+      "dataset": {
+        "kind": "none"
+      },
+      "candidateImages": [
+        "python:3.12.14-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254"
+      ],
+      "principals": [
+        "local-operator"
+      ]
+    }
+  ]
+}

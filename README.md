@@ -44,6 +44,13 @@ creates and verifies the stable `analysis-result/v1` object. The reporter comman
 arguments and trusted staging metadata are supplied by the control plane at
 resolution time; the template owns transfer and publication commands.
 
+Bundle `local-kind-windows/1.1.0` adds the first control-plane-runnable k6
+execution template without modifying the immutable native-only 1.0.0 bundle.
+The reviewed Job fixes checkout/smoke and the local sample API target, separates
+the credential-free runner from the restricted publisher, and publishes a
+checksum-verified raw-result/v2 completion marker for collection by the control
+plane.
+
 Deployable bundles will live under:
 
 ```text

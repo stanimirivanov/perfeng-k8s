@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD_ROOT = ROOT / "workloads" / "pod-startup"
 WORKLOAD_DEFINITION = WORKLOAD_ROOT / "workload.json"
 RELEASE_PATH = ROOT / "toolchain" / "kube-burner.json"
-BUNDLE_ROOT = ROOT / "bundles" / "local-kind-windows" / "1.0.0"
+BUNDLE_ROOT = ROOT / "bundles" / "local-kind-windows" / "1.1.0"
 IMAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$")
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
@@ -32,6 +32,15 @@ ANALYSIS_IMAGE = (
 )
 ANALYSIS_REVISION = "4a55dbb993335652e56b49a966601420eaa905ba"
 ENVIRONMENT_REVISION = "e0b95cb10cdabb9be95543947b6552b51aa81832"
+K6_IMAGE = (
+    "ghcr.io/stanimirivanov/perfeng-k6@sha256:"
+    "f40f15780dd4eb8124a327c5d7a051848276494bec77f2c18590520be5c5c962"
+)
+K6_REVISION = "a916ef3bcbfe9337504bdba6ddddcafe46f32b81"
+SAMPLE_SUT_IMAGE = (
+    "python:3.12.14-slim-bookworm@sha256:"
+    "782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254"
+)
 TRANSFER_IMAGE = (
     "amazon/aws-cli:2.36.37@sha256:be6228bd99b4b0b9787543952aebfe93c66b5503121b68a724647c523c957a9d"
 )
@@ -1041,38 +1050,328 @@ def validate_report_container_policy(container: Mapping[str, Any], name: str) ->
         fail(f"report {name} resources are invalid")
 
 
+def validate_execution_job() -> None:
+    """Validate the fixed-target, reusable k6 execution and publication template."""
+    job = load_json(BUNDLE_ROOT / "jobs" / "execution.json")
+    exact_keys(job, "execution Job", {"apiVersion", "kind", "metadata", "spec"})
+    labels = {
+        "app.kubernetes.io/name": "perfeng-k6",
+        "app.kubernetes.io/component": "load-generation",
+    }
+    if (
+        job["apiVersion"] != "batch/v1"
+        or job["kind"] != "Job"
+        or job["metadata"] != {"labels": labels}
+    ):
+        fail("execution Job identity or reusable metadata is invalid")
+
+    spec = mapping(job["spec"], "execution Job spec")
+    exact_keys(
+        spec,
+        "execution Job spec",
+        {"backoffLimit", "completions", "parallelism", "activeDeadlineSeconds", "template"},
+    )
+    if {key: spec[key] for key in ("backoffLimit", "completions", "parallelism")} != {
+        "backoffLimit": 0,
+        "completions": 1,
+        "parallelism": 1,
+    } or spec["activeDeadlineSeconds"] != 900:
+        fail("execution Job bounds are invalid")
+
+    template = mapping(spec["template"], "execution Pod template")
+    if set(template) != {"metadata", "spec"} or template["metadata"] != {"labels": labels}:
+        fail("execution Pod template identity is invalid")
+    pod = mapping(template["spec"], "execution Pod spec")
+    exact_keys(
+        pod,
+        "execution Pod spec",
+        {
+            "restartPolicy",
+            "automountServiceAccountToken",
+            "enableServiceLinks",
+            "nodeSelector",
+            "securityContext",
+            "initContainers",
+            "containers",
+            "volumes",
+        },
+    )
+    if (
+        pod["restartPolicy"] != "Never"
+        or pod["automountServiceAccountToken"] is not False
+        or pod["enableServiceLinks"] is not False
+        or pod["nodeSelector"]
+        != {
+            "kubernetes.io/os": "linux",
+            "kubernetes.io/arch": "amd64",
+            "workload": "performance-generator",
+        }
+        or pod["securityContext"]
+        != {
+            "runAsNonRoot": True,
+            "runAsUser": 12345,
+            "runAsGroup": 12345,
+            "fsGroup": 12345,
+            "fsGroupChangePolicy": "OnRootMismatch",
+            "seccompProfile": {"type": "RuntimeDefault"},
+        }
+    ):
+        fail("execution Pod scheduling or security policy is invalid")
+
+    initializers = sequence(pod["initContainers"], "execution initContainers")
+    containers = sequence(pod["containers"], "execution containers")
+    if len(initializers) != 1 or len(containers) != 1:
+        fail("execution Job must contain one k6 runner and one publisher")
+    validate_k6_runner(mapping(initializers[0], "k6 runner"))
+    validate_raw_publisher(mapping(containers[0], "raw publisher"))
+    if pod["volumes"] != [
+        {"name": "results", "emptyDir": {"sizeLimit": "256Mi"}},
+        {"name": "runner-tmp", "emptyDir": {"sizeLimit": "64Mi"}},
+        {"name": "publisher-tmp", "emptyDir": {"sizeLimit": "64Mi"}},
+    ]:
+        fail("execution Job volumes are invalid")
+
+
+def validate_k6_runner(container: Mapping[str, Any]) -> None:
+    """Validate the credential-free runner and its fixed local workload."""
+    exact_keys(
+        container,
+        "k6 runner",
+        {
+            "name",
+            "image",
+            "imagePullPolicy",
+            "command",
+            "args",
+            "env",
+            "securityContext",
+            "resources",
+            "volumeMounts",
+        },
+    )
+    if (
+        container["name"] != "k6"
+        or container["image"] != K6_IMAGE
+        or container["imagePullPolicy"] != "IfNotPresent"
+        or container["command"] != ["/bin/sh", "-ec"]
+    ):
+        fail("k6 runner identity is invalid")
+    if container["env"] != [
+        {"name": "BASE_URL", "value": "http://sample-sut.perf-sut.svc.cluster.local:8080"},
+        {"name": "API_VERSION", "value": "v1"},
+        {"name": "THINK_TIME", "value": "1"},
+    ]:
+        fail("k6 runner target or runtime configuration is invalid")
+    arguments = sequence(container["args"], "k6 runner arguments")
+    required = {
+        "--config workloads/smoke/checkout.json",
+        "--summary-export /results/summary.json",
+        "--out json=/results/points.jsonl",
+        "tests/checkout/scenario.js",
+        "> /results/runner.log 2>&1 || code=$?",
+        "test -s /results/summary.json",
+        "test -s /results/points.jsonl",
+    }
+    if len(arguments) != 1 or any(fragment not in arguments[0] for fragment in required):
+        fail("k6 runner command or retained evidence is invalid")
+    validate_execution_container_policy(container, "runner")
+    if container["volumeMounts"] != [
+        {"name": "results", "mountPath": "/results"},
+        {"name": "runner-tmp", "mountPath": "/tmp"},
+    ]:
+        fail("k6 runner volume mounts are invalid")
+
+
+def validate_raw_publisher(container: Mapping[str, Any]) -> None:
+    """Validate conditional raw-result/v2 publication and storage isolation."""
+    exact_keys(
+        container,
+        "raw publisher",
+        {
+            "name",
+            "image",
+            "imagePullPolicy",
+            "command",
+            "args",
+            "env",
+            "securityContext",
+            "resources",
+            "volumeMounts",
+        },
+    )
+    if (
+        container["name"] != "publish-raw"
+        or container["image"] != TRANSFER_IMAGE
+        or container["imagePullPolicy"] != "IfNotPresent"
+        or container["command"] != ["/bin/sh", "-ec"]
+    ):
+        fail("raw publisher identity is invalid")
+    arguments = sequence(container["args"], "raw publisher arguments")
+    required = {
+        '--if-none-match "*"',
+        'get-object --bucket perfeng-artifacts --key "$key"',
+        "sha256sum -c -",
+        "--query ContentLength --output text",
+        "--query ContentType --output text",
+        "--query Metadata.sha256 --output text",
+        "--query Metadata.format --output text",
+        '"schemaVersion":2',
+        '"contractsVersion":"0.13.0"',
+        '"testId":"checkout-api"',
+        '"id":"checkout-smoke"',
+        '"kind":"oci-image"',
+        K6_IMAGE,
+        '"runs/$PERFENG_RUN_ID/raw-result.json"',
+        "raw-result/v2 ''",
+    }
+    if len(arguments) != 1 or any(fragment not in arguments[0] for fragment in required):
+        fail("raw publication assembly or verification is incomplete")
+
+    variables = [mapping(value, "raw publisher environment") for value in container["env"]]
+    names = [variable.get("name") for variable in variables]
+    expected_names = [
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "PERFENG_S3_ENDPOINT",
+        "PERFENG_RUN_ID",
+        "HOME",
+        "AWS_CONFIG_FILE",
+        "AWS_DEFAULT_REGION",
+        "AWS_EC2_METADATA_DISABLED",
+        "AWS_PAGER",
+        "AWS_MAX_ATTEMPTS",
+    ]
+    if names != expected_names:
+        fail("raw publisher environment is invalid")
+    validate_uploader_credentials(variables[:2], "raw publisher")
+    if variables[2:] != [
+        {
+            "name": "PERFENG_S3_ENDPOINT",
+            "value": "http://seaweedfs.perf-platform.svc.cluster.local:8333",
+        },
+        {
+            "name": "PERFENG_RUN_ID",
+            "valueFrom": {
+                "fieldRef": {
+                    "apiVersion": "v1",
+                    "fieldPath": "metadata.labels['perfeng.io/run-id']",
+                }
+            },
+        },
+        {"name": "HOME", "value": "/tmp"},
+        {"name": "AWS_CONFIG_FILE", "value": "/tmp/awsconfig"},
+        {"name": "AWS_DEFAULT_REGION", "value": "us-east-1"},
+        {"name": "AWS_EC2_METADATA_DISABLED", "value": "true"},
+        {"name": "AWS_PAGER", "value": ""},
+        {"name": "AWS_MAX_ATTEMPTS", "value": "2"},
+    ]:
+        fail("raw publisher storage or Run identity configuration is invalid")
+    validate_execution_container_policy(container, "publisher")
+    if container["volumeMounts"] != [
+        {"name": "results", "mountPath": "/results", "readOnly": True},
+        {"name": "publisher-tmp", "mountPath": "/tmp"},
+    ]:
+        fail("raw publisher volume mounts are invalid")
+
+
+def validate_execution_container_policy(container: Mapping[str, Any], name: str) -> None:
+    """Validate k6 execution container isolation and resource bounds."""
+    if container["securityContext"] != {
+        "allowPrivilegeEscalation": False,
+        "readOnlyRootFilesystem": True,
+        "capabilities": {"drop": ["ALL"]},
+    }:
+        fail(f"execution {name} security context is invalid")
+    expected = {
+        "runner": {
+            "requests": {"cpu": "500m", "memory": "256Mi", "ephemeral-storage": "256Mi"},
+            "limits": {"cpu": "1", "memory": "512Mi", "ephemeral-storage": "768Mi"},
+        },
+        "publisher": {
+            "requests": {"cpu": "50m", "memory": "96Mi", "ephemeral-storage": "64Mi"},
+            "limits": {"cpu": "500m", "memory": "256Mi", "ephemeral-storage": "256Mi"},
+        },
+    }
+    if container["resources"] != expected[name]:
+        fail(f"execution {name} resources are invalid")
+
+
 def validate_bundle() -> None:
-    """Validate the repository-owned identities of the first runtime bundle."""
+    """Validate the repository-owned identities of the current runtime bundle."""
     registry = load_json(BUNDLE_ROOT / "registry.json")
     entries = sequence(registry.get("entries"), "runtime bundle entries")
-    if registry.get("schemaVersion") != 1 or len(entries) != 1:
-        fail("runtime bundle must contain exactly one schema version 1 entry")
-    entry = mapping(entries[0], "runtime bundle entry")
+    if registry.get("schemaVersion") != 1 or len(entries) != 2:
+        fail("runtime bundle must contain exactly two schema version 1 entries")
+    by_test_id = {
+        entry.get("testId"): entry
+        for entry in (mapping(value, "runtime bundle entry") for value in entries)
+    }
+    if set(by_test_id) != {"pod-startup-k8s", "checkout-api"}:
+        fail("runtime bundle test identities are invalid")
+    pod_startup = by_test_id["pod-startup-k8s"]
+    checkout = by_test_id["checkout-api"]
 
     catalogue = load_json(BUNDLE_ROOT / "identities" / "catalogue.json")
     environment = load_json(BUNDLE_ROOT / "identities" / "environment.json")
     analysis = load_json(BUNDLE_ROOT / "identities" / "analysis-image.json")
-    workload_digest = file_digest(WORKLOAD_DEFINITION)
+    k6 = load_json(BUNDLE_ROOT / "identities" / "k6-image.json")
+    checkout_workload = load_json(BUNDLE_ROOT / "identities" / "workloads" / "checkout-smoke.json")
     windows_asset = mapping(
         mapping(load_json(RELEASE_PATH)["assets"], "kube-burner assets")["windows-amd64"],
         "kube-burner windows asset",
     )
 
-    if entry.get("testId") != "pod-startup-k8s" or entry.get("contractsVersion") != "0.13.0":
-        fail("runtime bundle test or contracts identity is invalid")
-    if entry.get("profile") != "smoke" or entry.get("dataset") != {"kind": "none"}:
-        fail("runtime bundle profile or dataset is invalid")
-    if entry.get("candidateImages") != [EXPECTED_IMAGE]:
-        fail("runtime bundle candidate image is not the reviewed workload image")
-    if entry.get("principals") != ["local-operator"]:
-        fail("runtime bundle local authorization is invalid")
-    if entry.get("normalization") != {
-        "sourceFormat": "kube-burner-pod-latency-json",
-        "layout": "",
-    }:
-        fail("runtime bundle normalization profile is invalid")
+    catalogue_reference = {
+        "id": catalogue.get("id"),
+        "version": catalogue.get("version"),
+        "sha256": file_digest(BUNDLE_ROOT / "identities" / "catalogue.json"),
+    }
+    source = mapping(environment.get("source"), "runtime environment source")
+    cluster = mapping(environment.get("cluster"), "runtime environment cluster")
+    environment_reference = {
+        "id": environment.get("id"),
+        "version": environment.get("version"),
+        "sha256": file_digest(BUNDLE_ROOT / "identities" / "environment.json"),
+        "fingerprint": cluster.get("sha256"),
+    }
+    if source.get("gitSha") != ENVIRONMENT_REVISION:
+        fail("runtime bundle environment source revision is invalid")
+    for entry in (pod_startup, checkout):
+        if (
+            entry.get("contractsVersion") != "0.13.0"
+            or entry.get("profile") != "smoke"
+            or entry.get("dataset") != {"kind": "none"}
+            or entry.get("principals") != ["local-operator"]
+            or entry.get("catalogue") != catalogue_reference
+            or entry.get("environment") != environment_reference
+        ):
+            fail("runtime bundle shared identity or authorization is invalid")
+        for field in ("normalizerProducer", "reportProducer"):
+            if entry.get(field) != {
+                "name": "perfeng-analysis",
+                "version": "0.8.1",
+                "image": ANALYSIS_IMAGE,
+            }:
+                fail(f"runtime bundle {field} is not the verified analysis image")
 
-    raw_producer = mapping(entry.get("rawProducer"), "runtime raw producer")
+    if (
+        pod_startup.get("candidateImages") != [EXPECTED_IMAGE]
+        or pod_startup.get("normalization")
+        != {
+            "sourceFormat": "kube-burner-pod-latency-json",
+            "layout": "",
+        }
+        or pod_startup.get("workload")
+        != {
+            "id": "pod-startup-smoke",
+            "version": "1.0.0",
+            "sha256": file_digest(WORKLOAD_DEFINITION),
+        }
+        or "executionTemplate" in pod_startup
+    ):
+        fail("runtime bundle pod-startup entry is invalid")
+
+    raw_producer = mapping(pod_startup.get("rawProducer"), "runtime raw producer")
     raw_artifact = mapping(raw_producer.get("artifact"), "runtime raw producer artifact")
     if raw_producer.get("name") != "kube-burner" or raw_producer.get("version") != "2.8.5":
         fail("runtime bundle kube-burner identity is invalid")
@@ -1084,13 +1383,6 @@ def validate_bundle() -> None:
     }:
         fail("runtime bundle does not use the reviewed Windows kube-burner archive")
 
-    for field in ("normalizerProducer", "reportProducer"):
-        if entry.get(field) != {
-            "name": "perfeng-analysis",
-            "version": "0.8.1",
-            "image": ANALYSIS_IMAGE,
-        }:
-            fail(f"runtime bundle {field} is not the verified analysis image")
     if analysis != {
         "schemaVersion": 1,
         "name": "perfeng-analysis",
@@ -1104,34 +1396,54 @@ def validate_bundle() -> None:
     }:
         fail("runtime bundle analysis image provenance is invalid")
 
-    catalogue_reference = mapping(entry.get("catalogue"), "runtime catalogue")
-    if catalogue_reference != {
-        "id": catalogue.get("id"),
-        "version": catalogue.get("version"),
-        "sha256": file_digest(BUNDLE_ROOT / "identities" / "catalogue.json"),
+    if k6 != {
+        "schemaVersion": 1,
+        "name": "k6",
+        "version": "2.2.0",
+        "image": K6_IMAGE,
+        "source": {
+            "repository": "https://github.com/stanimirivanov/perfeng-k6",
+            "gitSha": K6_REVISION,
+        },
+        "platform": "linux/amd64",
     }:
-        fail("runtime bundle catalogue reference does not match its reviewed bytes")
-    workload_reference = mapping(entry.get("workload"), "runtime workload")
-    if workload_reference != {
-        "id": "pod-startup-smoke",
+        fail("runtime bundle k6 image provenance is invalid")
+    if checkout_workload != {
+        "schemaVersion": 1,
+        "id": "checkout-smoke",
         "version": "1.0.0",
-        "sha256": workload_digest,
+        "tool": "k6",
+        "profile": "smoke",
+        "model": "open",
+        "configuration": {
+            "path": "workloads/smoke/checkout.json",
+            "sha256": "fb8080390fbff61fdec8c4e1dc9d70eb44a92195bb29e6000b74d69e53344ab2",
+        },
+        "phases": {"unit": "seconds", "warmup": 0, "measurement": 120, "cooldown": 0},
+        "dataset": {"kind": "none"},
     }:
-        fail("runtime bundle workload reference does not match its reviewed bytes")
+        fail("runtime bundle checkout workload identity is invalid")
+    if (
+        checkout.get("candidateImages") != [SAMPLE_SUT_IMAGE]
+        or checkout.get("executionTemplate") != "jobs/execution.json"
+        or checkout.get("normalization")
+        != {"sourceFormat": "k6-summary-json", "layout": "legacy-export"}
+        or checkout.get("rawProducer")
+        != {
+            "name": "k6",
+            "version": "2.2.0",
+            "artifact": {"kind": "oci-image", "image": K6_IMAGE},
+        }
+        or checkout.get("workload")
+        != {
+            "id": "checkout-smoke",
+            "version": "1.0.0",
+            "sha256": file_digest(BUNDLE_ROOT / "identities" / "workloads" / "checkout-smoke.json"),
+        }
+    ):
+        fail("runtime bundle checkout execution entry is invalid")
 
-    environment_reference = mapping(entry.get("environment"), "runtime environment")
-    source = mapping(environment.get("source"), "runtime environment source")
-    cluster = mapping(environment.get("cluster"), "runtime environment cluster")
-    if source.get("gitSha") != ENVIRONMENT_REVISION:
-        fail("runtime bundle environment source revision is invalid")
-    if environment_reference != {
-        "id": environment.get("id"),
-        "version": environment.get("version"),
-        "sha256": file_digest(BUNDLE_ROOT / "identities" / "environment.json"),
-        "fingerprint": cluster.get("sha256"),
-    }:
-        fail("runtime bundle environment reference does not match its reviewed bytes")
-
+    validate_execution_job()
     validate_analysis_job()
     validate_report_job()
 
