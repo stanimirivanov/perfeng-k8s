@@ -25,6 +25,8 @@ spec:
     spec:
       serviceAccountName: {{ .Release.Name }}
       automountServiceAccountToken: true
+      imagePullSecrets:
+        - name: {{ required "imagePullSecret is required" .Values.imagePullSecret }}
       nodeSelector:
         workload: control-plane
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}

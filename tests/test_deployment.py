@@ -21,6 +21,18 @@ class DeploymentValidationTests(unittest.TestCase):
             succeeds=False,
         )
 
+    def test_invalid_image_pull_secret_name_is_rejected(self) -> None:
+        deployment.helm(
+            "template",
+            "control-plane",
+            str(deployment.CONTROL_PLANE_CHART),
+            "--values",
+            str(deployment.CONTROL_PLANE_VALUES),
+            "--set-string",
+            "imagePullSecret=other/secret",
+            succeeds=False,
+        )
+
     def test_registry_mount_cannot_escape_its_volume(self) -> None:
         deployment.helm(
             "template",

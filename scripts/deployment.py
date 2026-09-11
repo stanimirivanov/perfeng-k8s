@@ -126,6 +126,8 @@ def validate_control_plane_chart() -> None:
         fail("control-plane Pod identity is invalid")
     if service_account.get("automountServiceAccountToken") is not True:
         fail("control-plane ServiceAccount token policy is invalid")
+    if pod_spec.get("imagePullSecrets") != [{"name": "perfeng-control-plane-registry"}]:
+        fail("control-plane image pull credentials are invalid")
     if pod_spec.get("securityContext") != {
         "runAsNonRoot": True,
         "runAsUser": 65532,

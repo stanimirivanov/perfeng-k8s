@@ -6,6 +6,7 @@
     "replicas",
     "image",
     "imagePullPolicy",
+    "imagePullSecret",
     "executionNamespace",
     "runtimeConfigMap",
     "runtimeSecret",
@@ -24,6 +25,7 @@
       "pattern": "^ghcr\\.io/stanimirivanov/perfeng-control-plane@sha256:[0-9a-f]{64}$"
     },
     "imagePullPolicy": {"const": "IfNotPresent"},
+    "imagePullSecret": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"},
     "executionNamespace": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"},
     "runtimeConfigMap": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"},
     "runtimeSecret": {"type": "string", "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$"},

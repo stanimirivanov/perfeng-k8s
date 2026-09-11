@@ -55,10 +55,12 @@ The `charts/control-plane` package defines the reusable service workload and its
 least-privilege execution-namespace RBAC. It requires an immutable GHCR digest
 and references externally managed runtime configuration, credentials,
 authentication and reviewed-registry objects. The chart never creates Secrets
-or ConfigMaps, and its synthetic rendering values under `testdata` are not a
-deployment selection. `perfeng-environment` must supply the real image digest
-and configuration when composing an environment. Startup and liveness probes
-use the control plane's `/livez` endpoint; readiness uses `/readyz`.
+or ConfigMaps. The Pod references a required, externally managed image-pull
+Secret in its release namespace; the chart never receives registry credentials.
+Its synthetic rendering values under `testdata` are not a deployment selection.
+`perfeng-environment` must supply the real image digest, Secret name and
+configuration when composing an environment. Startup and liveness probes use
+the control plane's `/livez` endpoint; readiness uses `/readyz`.
 
 Deployable bundles will live under:
 
