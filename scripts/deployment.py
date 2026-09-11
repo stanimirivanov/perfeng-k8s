@@ -122,6 +122,14 @@ def validate_control_plane_chart() -> None:
         pod_spec.get("serviceAccountName") != "control-plane"
         or pod_spec.get("automountServiceAccountToken") is not True
         or pod_spec.get("nodeSelector") != {"workload": "control-plane"}
+        or pod_spec.get("tolerations")
+        != [
+            {
+                "key": "node-role.kubernetes.io/control-plane",
+                "operator": "Exists",
+                "effect": "NoSchedule",
+            }
+        ]
     ):
         fail("control-plane Pod identity is invalid")
     if service_account.get("automountServiceAccountToken") is not True:

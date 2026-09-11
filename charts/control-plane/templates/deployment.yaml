@@ -29,6 +29,10 @@ spec:
         - name: {{ required "imagePullSecret is required" .Values.imagePullSecret }}
       nodeSelector:
         workload: control-plane
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       securityContext:
         runAsNonRoot: true
