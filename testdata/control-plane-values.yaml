@@ -1,4 +1,5 @@
 image: ghcr.io/stanimirivanov/perfeng-control-plane@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+imagePullSecret: perfeng-control-plane-registry
 executionNamespace: perf-generators
 runtimeConfigMap: perfeng-control-plane-runtime
 runtimeSecret: perfeng-control-plane-runtime
