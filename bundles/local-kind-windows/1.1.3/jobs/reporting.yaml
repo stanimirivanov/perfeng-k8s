@@ -1,0 +1,274 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/name: perfeng-analysis
+    app.kubernetes.io/component: reporting
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: perfeng-analysis
+        app.kubernetes.io/component: reporting
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/os: linux
+        workload: control-plane
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: stage-inputs
+          image: amazon/aws-cli:2.36.37@sha256:be6228bd99b4b0b9787543952aebfe93c66b5503121b68a724647c523c957a9d
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -euc]
+          args:
+            - |
+              umask 027
+              printf '[default]\ns3 =\n    addressing_style = path\n' > /tmp/awsconfig
+              download() {
+                uri="$1"
+                expected_sha256="$2"
+                expected_size="$3"
+                destination="$4"
+                case "$uri" in
+                  s3://perfeng-artifacts/runs/*|s3://perfeng-artifacts/policies/*) ;;
+                  *) printf 'Unsupported reporting input URI\n' >&2; exit 1 ;;
+                esac
+                mkdir -p "$(dirname "$destination")"
+                partial="${destination}.partial"
+                rm -f "$partial" "$destination"
+                aws --endpoint-url "$PERFENG_S3_ENDPOINT" \
+                  --cli-connect-timeout 10 --cli-read-timeout 60 \
+                  s3 cp "$uri" "$partial" --only-show-errors
+                actual_size="$(wc -c < "$partial" | tr -d '[:space:]')"
+                if [ -n "$expected_size" ]; then
+                  test "$actual_size" = "$expected_size"
+                else
+                  test "$actual_size" -le 1048576
+                fi
+                printf '%s  %s\n' "$expected_sha256" "$partial" | sha256sum -c - >/dev/null
+                mv "$partial" "$destination"
+              }
+              json_escape() {
+                printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+              }
+              write_candidate_reference() {
+                destination="$PERFENG_REPORT_CANDIDATE_REFERENCE_PATH"
+                mkdir -p "$(dirname "$destination")"
+                partial="${destination}.partial"
+                printf '{"id":"%s","runId":"%s","kind":"%s","uri":"%s","sha256":"%s","sizeBytes":%s,"mediaType":"%s","format":"%s"}\n' \
+                  "$(json_escape "$PERFENG_REPORT_CANDIDATE_ARTIFACT_ID")" \
+                  "$(json_escape "$PERFENG_REPORT_CANDIDATE_RUN_ID")" \
+                  "$(json_escape "$PERFENG_REPORT_CANDIDATE_KIND")" \
+                  "$(json_escape "$PERFENG_REPORT_CANDIDATE_URI")" \
+                  "$(json_escape "$PERFENG_REPORT_CANDIDATE_SHA256")" \
+                  "$PERFENG_REPORT_CANDIDATE_SIZE_BYTES" \
+                  "$(json_escape "$PERFENG_REPORT_CANDIDATE_MEDIA_TYPE")" \
+                  "$(json_escape "$PERFENG_REPORT_CANDIDATE_FORMAT")" > "$partial"
+                mv "$partial" "$destination"
+              }
+              printf 'Staging report candidate: artifact=%s\n' \
+                "$PERFENG_REPORT_CANDIDATE_ARTIFACT_ID"
+              download "$PERFENG_REPORT_CANDIDATE_URI" \
+                "$PERFENG_REPORT_CANDIDATE_SHA256" \
+                "$PERFENG_REPORT_CANDIDATE_SIZE_BYTES" \
+                "$PERFENG_REPORT_CANDIDATE_PATH"
+              write_candidate_reference
+              policy_uri="s3://perfeng-artifacts/policies/$PERFENG_REPORT_POLICY_ID/$PERFENG_REPORT_POLICY_VERSION/performance-policy.json"
+              printf 'Staging report policy: id=%s version=%s\n' \
+                "$PERFENG_REPORT_POLICY_ID" "$PERFENG_REPORT_POLICY_VERSION"
+              download "$policy_uri" "$PERFENG_REPORT_POLICY_SHA256" "" \
+                "$PERFENG_REPORT_POLICY_PATH"
+              reference_count="$PERFENG_REPORT_REFERENCE_COUNT"
+              case "$reference_count" in
+                ''|*[!0-9]*) printf 'Invalid report reference count\n' >&2; exit 1 ;;
+              esac
+              index=0
+              while [ "$index" -lt "$reference_count" ]; do
+                prefix="PERFENG_REPORT_REFERENCE_${index}_"
+                artifact_id="$(printenv "${prefix}ARTIFACT_ID")"
+                uri="$(printenv "${prefix}URI")"
+                sha256="$(printenv "${prefix}SHA256")"
+                size="$(printenv "${prefix}SIZE_BYTES")"
+                result_path="$(printenv "${prefix}PATH")"
+                reference_path="$(printenv "${prefix}REFERENCE_PATH")"
+                artifact_base64="$(printenv "${prefix}ARTIFACT_BASE64")"
+                printf 'Staging report reference: artifact=%s\n' "$artifact_id"
+                download "$uri" "$sha256" "$size" "$result_path"
+                mkdir -p "$(dirname "$reference_path")"
+                partial="${reference_path}.partial"
+                printf '%s' "$artifact_base64" | base64 -d > "$partial"
+                mv "$partial" "$reference_path"
+                index=$((index + 1))
+              done
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: perfeng-s3-uploader-auth
+                  key: access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: perfeng-s3-uploader-auth
+                  key: secret-key
+            - name: PERFENG_S3_ENDPOINT
+              value: http://seaweedfs.perf-platform.svc.cluster.local:8333
+            - name: HOME
+              value: /tmp
+            - name: AWS_CONFIG_FILE
+              value: /tmp/awsconfig
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_EC2_METADATA_DISABLED
+              value: "true"
+            - name: AWS_PAGER
+              value: ""
+            - name: AWS_MAX_ATTEMPTS
+              value: "2"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - {name: report-input, mountPath: /workspace/input}
+            - {name: transfer-tmp, mountPath: /tmp}
+      containers:
+        - name: reporter
+          image: ghcr.io/stanimirivanov/perfeng-analysis@sha256:04b674c42861ab4178c0b57542eb5ab5cd8bf26052e3f51385985efb752d56ad
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          volumeMounts:
+            - {name: report-input, mountPath: /workspace/input, readOnly: true}
+            - {name: report-output, mountPath: /workspace/output}
+        - name: publish-output
+          image: amazon/aws-cli:2.36.37@sha256:be6228bd99b4b0b9787543952aebfe93c66b5503121b68a724647c523c957a9d
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -euc]
+          args:
+            - |
+              printf '[default]\ns3 =\n    addressing_style = path\n' > /tmp/awsconfig
+              output=/workspace/output/analysis-result.json
+              remaining=300
+              while [ ! -f "$output" ]; do
+                remaining=$((remaining - 1))
+                if [ "$remaining" -le 0 ]; then
+                  printf 'Completed report output did not appear\n' >&2
+                  exit 1
+                fi
+                sleep 1
+              done
+              key="runs/$PERFENG_RUN_ID/analysis-result.json"
+              set -- $(sha256sum "$output")
+              sha256="$1"
+              size="$(wc -c < "$output" | tr -d '[:space:]')"
+              artifact_id="$(cat /proc/sys/kernel/random/uuid)"
+              aws_s3() {
+                aws --endpoint-url "$PERFENG_S3_ENDPOINT" \
+                  --cli-connect-timeout 10 --cli-read-timeout 60 s3api "$@"
+              }
+              if aws_s3 put-object --bucket perfeng-artifacts --key "$key" \
+                --body "$output" --if-none-match "*" --content-type application/json \
+                --metadata "artifact-id=$artifact_id,sha256=$sha256,format=analysis-result/v1" \
+                >/dev/null 2>&1; then
+                printf 'Published report output for Run %s\n' "$PERFENG_RUN_ID"
+              else
+                printf 'Publication was not acknowledged; verifying the stable object\n'
+              fi
+              rm -f /tmp/analysis-result.json
+              aws_s3 get-object --bucket perfeng-artifacts --key "$key" \
+                /tmp/analysis-result.json >/dev/null
+              printf '%s  %s\n' "$sha256" /tmp/analysis-result.json | sha256sum -c - >/dev/null
+              test "$(wc -c < /tmp/analysis-result.json | tr -d '[:space:]')" = "$size"
+              test "$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query ContentLength --output text)" = "$size"
+              test "$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query ContentType --output text)" = application/json
+              stored_artifact_id="$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query 'Metadata."artifact-id"' --output text)"
+              printf '%s\n' "$stored_artifact_id" | \
+                grep -Eq '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+              test "$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query Metadata.sha256 --output text)" = "$sha256"
+              test "$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query Metadata.format --output text)" = analysis-result/v1
+              printf 'Verified report publication: artifact=%s\n' "$stored_artifact_id"
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: perfeng-s3-uploader-auth
+                  key: access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: perfeng-s3-uploader-auth
+                  key: secret-key
+            - name: PERFENG_S3_ENDPOINT
+              value: http://seaweedfs.perf-platform.svc.cluster.local:8333
+            - name: PERFENG_RUN_ID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.labels['perfeng.io/run-id']
+            - name: HOME
+              value: /tmp
+            - name: AWS_CONFIG_FILE
+              value: /tmp/awsconfig
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_EC2_METADATA_DISABLED
+              value: "true"
+            - name: AWS_PAGER
+              value: ""
+            - name: AWS_MAX_ATTEMPTS
+              value: "2"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - {name: report-output, mountPath: /workspace/output, readOnly: true}
+            - {name: transfer-tmp, mountPath: /tmp}
+      volumes:
+        - name: report-input
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: report-output
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: transfer-tmp
+          emptyDir:
+            sizeLimit: 16Mi
