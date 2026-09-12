@@ -63,7 +63,7 @@ From this repository in PowerShell:
 
 ```powershell
 $fixtureRoot = (Resolve-Path testdata/runtime-registry).Path
-$bundleRoot = (Resolve-Path bundles/local-kind-windows/1.1.2).Path
+$bundleRoot = (Resolve-Path bundles/local-kind-windows/1.1.3).Path
 git -C ../perfeng-control-plane checkout 403e2f2dd0c07854593020b6f8da4979d808b21d
 go -C ../perfeng-control-plane run ./cmd/validate-registry -root $fixtureRoot -manifest registry.json
 go -C ../perfeng-control-plane run ./cmd/validate-registry -root $bundleRoot -manifest registry.json

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD_ROOT = ROOT / "workloads" / "pod-startup"
 WORKLOAD_DEFINITION = WORKLOAD_ROOT / "workload.json"
 RELEASE_PATH = ROOT / "toolchain" / "kube-burner.json"
-BUNDLE_ROOT = ROOT / "bundles" / "local-kind-windows" / "1.1.2"
+BUNDLE_ROOT = ROOT / "bundles" / "local-kind-windows" / "1.1.3"
 IMAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$")
 CANDIDATE_IMAGE_PATTERN = re.compile(
     r"^[a-z0-9]+(?:[.-][a-z0-9]+)*(?::[0-9]+)?"
@@ -1346,6 +1346,13 @@ def validate_bundle() -> None:
     if source.get("gitSha") != ENVIRONMENT_REVISION:
         fail("runtime bundle environment source revision is invalid")
     for entry in (pod_startup, checkout):
+        policy_path = entry.get("policy")
+        if not isinstance(policy_path, str):
+            fail("runtime bundle policy path is invalid")
+        policy_document = load_json(BUNDLE_ROOT / policy_path)
+        policy_metadata = mapping(policy_document.get("metadata"), "runtime policy metadata")
+        if policy_metadata.get("name") != entry.get("testId"):
+            fail("runtime policy name must match its test identity")
         candidate_images = sequence(entry.get("candidateImages"), "runtime candidate images")
         if not candidate_images or any(
             not isinstance(image, str) or CANDIDATE_IMAGE_PATTERN.fullmatch(image) is None

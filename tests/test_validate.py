@@ -93,6 +93,18 @@ class BenchmarkValidationTests(unittest.TestCase):
                 ):
                     validate.validate_bundle()
 
+    def test_runtime_policy_name_must_match_its_test_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            policy_path = bundle / "policies" / "checkout-smoke.json"
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            policy["metadata"]["name"] = "different-test"
+            policy_path.write_text(json.dumps(policy), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(validate.ValidationError, "test identity"):
+                    validate.validate_bundle()
+
     def test_execution_job_uses_the_verified_runner_and_fixed_target(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             bundle = self.copy_bundle(Path(directory))

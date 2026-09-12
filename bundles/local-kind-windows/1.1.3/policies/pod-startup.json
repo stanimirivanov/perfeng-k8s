@@ -1,0 +1,37 @@
+{
+  "apiVersion": "performance.perfeng.io/v1",
+  "kind": "PerformancePolicy",
+  "metadata": {
+    "name": "pod-startup-k8s",
+    "version": "1.0.0",
+    "owner": "platform-team"
+  },
+  "spec": {
+    "mode": "observe",
+    "missingData": "inconclusive",
+    "rules": [
+      {
+        "id": "pod-ready-regression",
+        "metric": {
+          "name": "k8s.pod.ready.duration",
+          "statistic": "p95",
+          "unit": "ms"
+        },
+        "quality": {
+          "minSamples": 10
+        },
+        "regression": {
+          "direction": "lower-is-better",
+          "practicalDifference": {
+            "kind": "relative",
+            "value": 0.1
+          },
+          "reference": {
+            "baselineId": "approved-local-pod-startup",
+            "version": "1.0.0"
+          }
+        }
+      }
+    ]
+  }
+}

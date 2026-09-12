@@ -60,6 +60,10 @@ Bundle `local-kind-windows/1.1.2` corrects the quoted JMESPath lookup used to
 verify hyphenated S3 metadata keys after normalized and report publication.
 This keeps the live verification compatible with the bundle's pinned AWS CLI.
 
+Bundle `local-kind-windows/1.1.3` aligns each performance policy name with its
+registry test identity, as required by the report evaluator. Repository
+validation rejects future bundles whose policy and test identities diverge.
+
 The `charts/control-plane` package defines the reusable service workload and its
 least-privilege execution-namespace RBAC. It requires an immutable GHCR digest
 and references externally managed runtime configuration, credentials,

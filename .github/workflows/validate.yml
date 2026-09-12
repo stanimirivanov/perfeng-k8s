@@ -72,3 +72,6 @@ jobs:
           go run ./cmd/validate-registry \
             -root "${{ github.workspace }}/bundles/local-kind-windows/1.1.2" \
             -manifest registry.json
+          go run ./cmd/validate-registry \
+            -root "${{ github.workspace }}/bundles/local-kind-windows/1.1.3" \
+            -manifest registry.json
