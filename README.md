@@ -51,6 +51,11 @@ the credential-free runner from the restricted publisher, and publishes a
 checksum-verified raw-result/v2 completion marker for collection by the control
 plane.
 
+Bundle `local-kind-windows/1.1.1` preserves those workloads while correcting
+candidate images to the canonical digest-only identities accepted by the Run
+API. Tags remain useful for human release discovery but are excluded from Run
+identity so one image digest has one authorization value.
+
 The `charts/control-plane` package defines the reusable service workload and its
 least-privilege execution-namespace RBAC. It requires an immutable GHCR digest
 and references externally managed runtime configuration, credentials,

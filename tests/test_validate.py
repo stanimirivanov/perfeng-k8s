@@ -76,6 +76,23 @@ class BenchmarkValidationTests(unittest.TestCase):
                 with self.assertRaisesRegex(validate.ValidationError, "verified analysis image"):
                     validate.validate_bundle()
 
+    def test_runtime_candidates_reject_tag_aliases(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = self.copy_bundle(Path(directory))
+            registry_path = bundle / "registry.json"
+            registry = json.loads(registry_path.read_text(encoding="utf-8"))
+            registry["entries"][1]["candidateImages"] = [
+                "docker.io/library/python:3.12.14-slim-bookworm@sha256:"
+                "782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254"
+            ]
+            registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
+            with patch.object(validate, "BUNDLE_ROOT", bundle):
+                with self.assertRaisesRegex(
+                    validate.ValidationError, "canonical digest-only references"
+                ):
+                    validate.validate_bundle()
+
     def test_execution_job_uses_the_verified_runner_and_fixed_target(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             bundle = self.copy_bundle(Path(directory))

@@ -18,13 +18,20 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD_ROOT = ROOT / "workloads" / "pod-startup"
 WORKLOAD_DEFINITION = WORKLOAD_ROOT / "workload.json"
 RELEASE_PATH = ROOT / "toolchain" / "kube-burner.json"
-BUNDLE_ROOT = ROOT / "bundles" / "local-kind-windows" / "1.1.0"
+BUNDLE_ROOT = ROOT / "bundles" / "local-kind-windows" / "1.1.1"
 IMAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$")
+CANDIDATE_IMAGE_PATTERN = re.compile(
+    r"^[a-z0-9]+(?:[.-][a-z0-9]+)*(?::[0-9]+)?"
+    r"(?:/[a-z0-9]+(?:[._-]+[a-z0-9]+)*)+@sha256:[a-f0-9]{64}$"
+)
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 EXPECTED_IMAGE = (
     "registry.k8s.io/pause:3.10.1@sha256:"
     "278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c"
+)
+POD_STARTUP_CANDIDATE_IMAGE = (
+    "registry.k8s.io/pause@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c"
 )
 ANALYSIS_IMAGE = (
     "ghcr.io/stanimirivanov/perfeng-analysis@sha256:"
@@ -37,8 +44,8 @@ K6_IMAGE = (
     "f40f15780dd4eb8124a327c5d7a051848276494bec77f2c18590520be5c5c962"
 )
 K6_REVISION = "a916ef3bcbfe9337504bdba6ddddcafe46f32b81"
-SAMPLE_SUT_IMAGE = (
-    "python:3.12.14-slim-bookworm@sha256:"
+SAMPLE_SUT_CANDIDATE_IMAGE = (
+    "docker.io/library/python@sha256:"
     "782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254"
 )
 TRANSFER_IMAGE = (
@@ -1337,6 +1344,12 @@ def validate_bundle() -> None:
     if source.get("gitSha") != ENVIRONMENT_REVISION:
         fail("runtime bundle environment source revision is invalid")
     for entry in (pod_startup, checkout):
+        candidate_images = sequence(entry.get("candidateImages"), "runtime candidate images")
+        if not candidate_images or any(
+            not isinstance(image, str) or CANDIDATE_IMAGE_PATTERN.fullmatch(image) is None
+            for image in candidate_images
+        ):
+            fail("runtime candidate images must use canonical digest-only references")
         if (
             entry.get("contractsVersion") != "0.13.0"
             or entry.get("profile") != "smoke"
@@ -1355,7 +1368,7 @@ def validate_bundle() -> None:
                 fail(f"runtime bundle {field} is not the verified analysis image")
 
     if (
-        pod_startup.get("candidateImages") != [EXPECTED_IMAGE]
+        pod_startup.get("candidateImages") != [POD_STARTUP_CANDIDATE_IMAGE]
         or pod_startup.get("normalization")
         != {
             "sourceFormat": "kube-burner-pod-latency-json",
@@ -1424,7 +1437,7 @@ def validate_bundle() -> None:
     }:
         fail("runtime bundle checkout workload identity is invalid")
     if (
-        checkout.get("candidateImages") != [SAMPLE_SUT_IMAGE]
+        checkout.get("candidateImages") != [SAMPLE_SUT_CANDIDATE_IMAGE]
         or checkout.get("executionTemplate") != "jobs/execution.json"
         or checkout.get("normalization")
         != {"sourceFormat": "k6-summary-json", "layout": "legacy-export"}
