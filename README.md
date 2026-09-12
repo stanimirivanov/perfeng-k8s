@@ -56,6 +56,10 @@ candidate images to the canonical digest-only identities accepted by the Run
 API. Tags remain useful for human release discovery but are excluded from Run
 identity so one image digest has one authorization value.
 
+Bundle `local-kind-windows/1.1.2` corrects the quoted JMESPath lookup used to
+verify hyphenated S3 metadata keys after normalized and report publication.
+This keeps the live verification compatible with the bundle's pinned AWS CLI.
+
 The `charts/control-plane` package defines the reusable service workload and its
 least-privilege execution-namespace RBAC. It requires an immutable GHCR digest
 and references externally managed runtime configuration, credentials,

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD_ROOT = ROOT / "workloads" / "pod-startup"
 WORKLOAD_DEFINITION = WORKLOAD_ROOT / "workload.json"
 RELEASE_PATH = ROOT / "toolchain" / "kube-burner.json"
-BUNDLE_ROOT = ROOT / "bundles" / "local-kind-windows" / "1.1.1"
+BUNDLE_ROOT = ROOT / "bundles" / "local-kind-windows" / "1.1.2"
 IMAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$")
 CANDIDATE_IMAGE_PATTERN = re.compile(
     r"^[a-z0-9]+(?:[.-][a-z0-9]+)*(?::[0-9]+)?"
@@ -633,6 +633,7 @@ def validate_analysis_publisher(container: Mapping[str, Any]) -> None:
         "grep -Eq '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'",
         "--query ContentLength --output text",
         "--query ContentType --output text",
+        "--query 'Metadata.\"artifact-id\"' --output text",
         "--query Metadata.sha256 --output text",
         "--query Metadata.format --output text",
     }
@@ -976,6 +977,7 @@ def validate_report_publisher(container: Mapping[str, Any]) -> None:
         "grep -Eq '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'",
         "--query ContentLength --output text",
         "--query ContentType --output text",
+        "--query 'Metadata.\"artifact-id\"' --output text",
         "--query Metadata.sha256 --output text",
         "--query Metadata.format --output text",
     }
