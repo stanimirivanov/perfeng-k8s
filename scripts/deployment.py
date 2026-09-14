@@ -192,7 +192,6 @@ def validate_control_plane_chart() -> None:
         )
     }
     expected_values = {
-        "PERFENG_HTTP_ADDRESS": ":8080",
         "PERFENG_KUBERNETES_NAMESPACE": "perf-generators",
         "PERFENG_AUTHENTICATION_FILE": "/etc/perfeng/auth/credentials.json",
         "PERFENG_REGISTRY_ROOT": "/etc/perfeng/registry",

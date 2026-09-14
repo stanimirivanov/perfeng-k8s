@@ -51,8 +51,6 @@ spec:
             - secretRef:
                 name: {{ required "runtimeSecret is required" .Values.runtimeSecret }}
           env:
-            - name: PERFENG_HTTP_ADDRESS
-              value: ":{{ .Values.httpPort }}"
             - name: PERFENG_WORKER_ID
               valueFrom:
                 fieldRef:
