@@ -72,8 +72,11 @@ or ConfigMaps. The Pod references a required, externally managed image-pull
 Secret in its release namespace; the chart never receives registry credentials.
 Its synthetic rendering values under `testdata` are not a deployment selection.
 `perfeng-environment` must supply the real image digest, Secret name and
-configuration when composing an environment. Startup and liveness probes use
-the control plane's `/livez` endpoint; readiness uses `/readyz`.
+configuration when composing an environment. The runtime ConfigMap owns the
+complete non-secret process policy, including `PERFENG_HTTP_ADDRESS`; its
+listener port must match the chart's `httpPort` service and probe boundary.
+Startup and liveness probes use the control plane's `/livez` endpoint;
+readiness uses `/readyz`.
 
 Deployable bundles will live under:
 
