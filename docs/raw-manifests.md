@@ -1,5 +1,16 @@
 # Kubernetes raw manifests
 
+## TL;DR
+
+- Assemble raw-result/v2 only from a completed frozen pod-startup capture and three verified storage
+  receipts.
+- The assembler verifies local identities, paths, hashes, sizes and payload shape without contacting
+  storage.
+- Storage must upload and verify immutable objects before issuing receipts.
+- Existing output is never overwritten, and original kube-burner evidence is never modified.
+- The execution interval is intentionally conservative; downstream analysis must not invent a more
+  precise measurement window.
+
 The offline assembler converts one completed pod-startup capture and three
 verified storage receipts into a contracts 0.13 raw-result/v2 document. It does
 not upload, download, register, normalize, or evaluate evidence. A valid

@@ -1,5 +1,17 @@
 # Pod-startup benchmark
 
+## TL;DR
+
+- Creates ten pods at two requests per second to verify the pod-startup evidence path, not to define
+  a stable performance baseline.
+- Measures warm-image Kubernetes scheduling and readiness; registry/cold-pull performance is out of
+  scope.
+- Defaults to preview and requires an explicit kubeconfig, context, Run ID, fresh output and matching
+  context confirmation before execution.
+- Uses a checksum-pinned kube-burner release and keeps measurements local.
+- Run only against an explicitly authorized disposable cluster and inspect failed cleanup before
+  deleting resources.
+
 This workload is the first bounded Kubernetes platform benchmark. It creates ten
 single-container pods at two requests per second and records kube-burner's
 `podLatency` measurement. The measurement separates scheduling, initialization,
