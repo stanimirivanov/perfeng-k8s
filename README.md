@@ -1,5 +1,18 @@
 # perfeng-k8s
 
+## TL;DR
+
+- Owns reusable Kubernetes charts and reviewed, immutable runtime-registry bundles for promoted
+  platform composition.
+- Every deployable bundle binds exact component digests, configuration hashes, environment identity,
+  policy and authorized principals.
+- Charts require externally managed environment configuration and credentials and preserve
+  least-privilege workload boundaries.
+- Synthetic fixtures are never deployable; local kind/Argo CD composition belongs to
+  `perfeng-environment`.
+- Run `make validate`; bundle changes also require `make runtime-registry` with the exact pinned
+  clean control-plane checkout.
+
 Reviewed Kubernetes deployment configuration for the performance engineering
 platform.
 
@@ -102,14 +115,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for local validation and change rules.
 
 ## Validate the repository
 
+Detailed contributor policy is in [CONTRIBUTING.md](CONTRIBUTING.md), Kubernetes and promotion
+standards are in [docs/development/engineering-standards.md](docs/development/engineering-standards.md),
+and durable decisions are recorded in [ADRs](docs/decisions/README.md).
+
 ```sh
 uv sync --locked
-uv run --locked ruff check .
-uv run --locked ruff format --check .
-uv run --locked ty check
-uv run --locked python -m unittest discover -s tests -v
-uv run --locked python -m scripts.validate
+make validate
 ```
+
+The equivalent individual commands remain documented in CONTRIBUTING. Runtime-bundle changes also
+require the exact pinned control-plane loader through `make runtime-registry`; that check is kept
+separate because it requires a clean adjacent repository at the recorded revision.
 
 Chart validation also requires Helm. It renders the control-plane package with
 non-deployable test values and checks the workload identity, security context,

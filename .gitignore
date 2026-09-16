@@ -8,4 +8,7 @@
 .ty_cache/
 __pycache__/
 *.py[cod]
+*.log
+*.tmp
 .DS_Store
+Thumbs.db
