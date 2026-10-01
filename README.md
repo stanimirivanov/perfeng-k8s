@@ -16,6 +16,10 @@
 Reviewed Kubernetes deployment configuration for the performance engineering
 platform.
 
+Use the [documentation map](docs/README.md) to route implementation work. The
+[coding harness](docs/development/harness.md) defines verification tiers and the
+[dependency policy](docs/development/dependency-policy.md) defines admission and update rules.
+
 This repository owns environment-specific, production-oriented composition:
 
 - immutable runtime registry bundles accepted by `perfeng-control-plane`;

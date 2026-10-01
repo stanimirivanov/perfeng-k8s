@@ -1,17 +1,32 @@
 CONTROL_PLANE_ROOT ?= ../perfeng-control-plane
 REGISTRY_VALIDATOR_REVISION := 403e2f2dd0c07854593020b6f8da4979d808b21d
 
-.PHONY: help fmt fmt-check check test definitions validate runtime-registry
+.PHONY: help bootstrap doctor fmt fmt-check docs-check check test definitions verify supply-chain validate runtime-registry
 
 help:
 	@echo perfeng-k8s engineering command surface
+	@echo "  make bootstrap          Resolve the locked Python environment"
+	@echo "  make doctor             Report the effective engineering toolchain"
 	@echo "  make fmt               Format Python sources"
 	@echo "  make fmt-check         Verify formatting without changing files"
+	@echo "  make docs-check        Verify repository-local documentation and policy"
 	@echo "  make check             Run formatting, linting and type checks"
 	@echo "  make test              Run the unit-test suite"
 	@echo "  make definitions       Validate charts, workloads and current bundle"
-	@echo "  make validate          Run all repository-local checks"
+	@echo "  make verify            Run all repository-local checks"
+	@echo "  make supply-chain      Verify the lock and audit dependencies"
+	@echo "  make validate          Run complete repository acceptance"
 	@echo "  make runtime-registry  Validate all bundles using the pinned adjacent control plane"
+
+bootstrap:
+	uv sync --locked
+
+doctor:
+	@git --version
+	@uv --version
+	@uv run --locked python --version
+	@helm version --short
+	@$(MAKE) --version
 
 fmt:
 	uv run --locked ruff format scripts tests
@@ -19,7 +34,10 @@ fmt:
 fmt-check:
 	uv run --locked ruff format --check .
 
-check: fmt-check
+docs-check:
+	uv run --locked python scripts/repository_policy.py
+
+check: fmt-check docs-check
 	uv run --locked ruff check .
 	uv run --locked ty check
 
@@ -29,7 +47,13 @@ test:
 definitions:
 	uv run --locked python -m scripts.validate
 
-validate: check test definitions
+verify: check test definitions
+
+supply-chain:
+	uv lock --check
+	uv audit --locked
+
+validate: verify supply-chain
 
 runtime-registry:
 	uv run --locked python -c "import subprocess, sys; root=r'$(CONTROL_PLANE_ROOT)'; expected='$(REGISTRY_VALIDATOR_REVISION)'; actual=subprocess.check_output(['git', '-C', root, 'rev-parse', 'HEAD'], text=True).strip(); dirty=subprocess.check_output(['git', '-C', root, 'status', '--porcelain'], text=True).strip(); sys.exit(0 if actual == expected and not dirty else f'Expected clean control plane {expected}, found {actual}' + (' with local changes' if dirty else ''))"

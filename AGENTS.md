@@ -16,9 +16,9 @@ SHOULD and MAY have the meanings defined there.
 1. You MUST read [CONTRIBUTING.md](CONTRIBUTING.md), especially its ambiguity, issue-timing,
    verification and external-side-effect rules.
 2. You MUST inspect the branch and working tree and preserve pre-existing work.
-3. You MUST read the relevant
-   [engineering standards](docs/development/engineering-standards.md), bundle documentation, chart
-   values/schema, operational guides, contract lock and accepted [ADRs](docs/decisions/README.md).
+3. You MUST use the [documentation map](docs/README.md) to select the relevant engineering
+   standards, bundle documentation, chart values/schema, operational guide, contract lock and ADR.
+   You MUST NOT bulk-read unrelated guides merely because they exist.
 4. You MUST use repository-local checks and MUST NOT claim an unavailable or unexecuted check
    passed.
 
