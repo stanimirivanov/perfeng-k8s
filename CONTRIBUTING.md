@@ -26,7 +26,10 @@ Lowercase guidance does not silently create another normative level.
 |:--|:--|
 | Contributor workflow, issue timing, escalation and completion | This document |
 | Concise contributor and agent entry point | [AGENTS.md](AGENTS.md) |
+| Task-oriented documentation routing | [docs/README.md](docs/README.md) |
+| Coding harness and verification tiers | [docs/development/harness.md](docs/development/harness.md) |
 | Kubernetes, bundle and promotion engineering | [docs/development/engineering-standards.md](docs/development/engineering-standards.md) |
+| Dependency admission and supply chain | [docs/development/dependency-policy.md](docs/development/dependency-policy.md) |
 | Architecture decisions | [docs/decisions](docs/decisions/README.md) |
 | Cross-repository milestones | [perfeng-environment roadmap](https://github.com/stanimirivanov/perfeng-environment/blob/main/docs/roadmap/milestones.md) |
 | Repository boundaries and current releases | [README.md](README.md) |
@@ -193,17 +196,9 @@ mutations MUST remain within requested scope and authority.
 
 ## Verification and constrained environments
 
-Run every applicable repository-local check:
-
-```sh
-uv run --locked ruff format --check .
-uv run --locked ruff check .
-uv run --locked ty check
-uv run --locked python -m unittest discover -s tests -v
-uv run --locked python -m scripts.validate
-```
-
-`make validate` wraps these checks. Helm is required for strict chart linting and rendering.
+Run `make verify` for all repository-local checks and `make validate` for complete acceptance.
+Helm is required for strict chart linting and rendering. The exact commands and prerequisites are
+inventoried in the [harness guide](docs/development/harness.md).
 
 Changes affecting runtime bundles MUST additionally use the exact control-plane validator revision
 declared in the Makefile and CI workflow. Check out that revision in a clean adjacent

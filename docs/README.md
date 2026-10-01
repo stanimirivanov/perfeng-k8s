@@ -1,0 +1,24 @@
+# Perfeng Kubernetes documentation map
+
+## TL;DR
+
+- Start with [CONTRIBUTING.md](../CONTRIBUTING.md), then follow the route for the changed deployment boundary.
+- Reusable charts, immutable runtime-registry bundles, synthetic fixtures, and live benchmark execution have distinct owners and verification paths.
+- Bundle bytes and exact runtime-loader revisions are immutable; harness work must not rewrite them.
+- Update this map when a canonical guide moves or a recurring task lacks a route.
+
+## Route by task
+
+| Task or changed area | Read first | Verify or consult as needed |
+|:--|:--|:--|
+| Contributor workflow or issue preparation | [Contributor guide](../CONTRIBUTING.md) | [Working agreement](../AGENTS.md) |
+| Build, CI, policy, dependencies, or setup | [Harness guide](development/harness.md), [dependency policy](development/dependency-policy.md) | [Engineering standards](development/engineering-standards.md), `make verify` |
+| Runtime-registry bundle or promotion | [Repository README](../README.md), the selected bundle README | Exact hashes, contract lock, `make runtime-registry` |
+| Control-plane chart or Kubernetes security | Chart values and schema under `charts/control-plane` | `make definitions`, rendered-object tests |
+| Pod-startup benchmark or kube-burner | [Pod-startup guide](pod-startup.md) | Workload definition, toolchain lock, focused tests |
+| Raw-result manifest assembly | [Raw-manifest guide](raw-manifests.md) | Contract snapshot and receipt fixtures |
+| Durable architecture or ownership decision | [ADR index](decisions/README.md) | Engineering standards and affected consumer documentation |
+
+## Keeping this map useful
+
+This page routes to canonical sources and does not replace them. `make docs-check` validates repository-local links and policy structure. Published bundle documentation remains part of its immutable review unit and is not rewritten to satisfy later stylistic preferences.
