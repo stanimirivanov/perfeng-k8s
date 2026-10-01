@@ -5,7 +5,7 @@
 - Resolve Python 3.12 dependencies exactly from `uv.lock`.
 - Admit dependencies only for current validation or execution needs after maintenance, license, security, and replacement review.
 - Treat Helm, Go, kubectl, and kube-burner as explicit boundary tools with pinned identities where they affect reproducibility.
-- GitHub Action `uses:` entries use semantic major versions; bundle hashes, image digests, tool checksums, and consumer revisions remain exact.
+- GitHub Actions may use reviewed release tags or commit pins; bundle hashes, image digests, tool checksums, and consumer revisions remain exact.
 - Dependabot may propose grouped GitHub Actions updates; Python updates remain a manual, lockfile-aware workflow until the hosted updater supports the pinned uv toolchain reliably.
 
 ## Python and development tools
@@ -16,7 +16,7 @@ Runtime validator libraries belong in project dependencies and development-only 
 
 Helm is required for offline chart validation. Go is required only for the pinned control-plane runtime loader. kube-burner acquisition follows the checked-in toolchain document and its checksums. Live Kubernetes clients are never hidden prerequisites of the repository-local inner loop.
 
-Semantic-major GitHub Action references do not weaken immutable deployment selection. Exact image digests, content hashes, release archives, contract revisions, and the runtime-validator commit remain unchanged unless the issue explicitly reviews that selection.
+Workflow `uses:` entries may use reviewed release tags or commit SHAs; repository policy does not enforce one reference style. Exact image digests, content hashes, release archives, contract revisions, and the runtime-validator commit remain unchanged unless the issue explicitly reviews that selection.
 
 ## Supply-chain response
 
