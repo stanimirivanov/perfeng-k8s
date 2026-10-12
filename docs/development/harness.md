@@ -22,4 +22,9 @@ The root Makefile owns the stable command surface and CI invokes it directly. Th
 
 ## Extending the harness
 
+`make definitions` includes the native search release-record and chart checks.
+Its rendering values are synthetic; the published provenance record is not an
+environment deployment selection. Helm schema and rendered-object regression
+tests run in the ordinary Windows/Linux test matrix without cluster access.
+
 Add checks at the cheapest tier that proves the invariant. Diagnostics identify the file, rule, correction, and canonical guide. Published bundle bytes are never reformatted or repaired in place; corrections create a new reviewed bundle version. Unavailable external prerequisites are reported under the constrained-environment protocol instead of being replaced by weaker checks.

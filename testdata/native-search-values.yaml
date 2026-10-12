@@ -1,0 +1,2 @@
+image: ghcr.io/stanimirivanov/perfeng-native-search@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+imagePullSecret: synthetic-native-search-registry

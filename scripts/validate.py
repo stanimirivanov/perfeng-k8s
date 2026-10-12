@@ -12,7 +12,7 @@ from typing import Any, Never
 
 import yaml
 
-from scripts import contracts, deployment
+from scripts import contracts, deployment, native_search
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD_ROOT = ROOT / "workloads" / "pod-startup"
@@ -1476,6 +1476,7 @@ def validate() -> None:
     validate_workload()
     validate_bundle()
     deployment.validate_control_plane_chart()
+    native_search.validate()
 
 
 def main() -> int:

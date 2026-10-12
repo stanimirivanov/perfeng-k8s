@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["image", "imagePullSecret"],
+  "properties": {
+    "image": {
+      "type": "string",
+      "pattern": "^ghcr\\.io/stanimirivanov/perfeng-native-search@sha256:[0-9a-f]{64}$"
+    },
+    "imagePullSecret": {
+      "type": "string",
+      "maxLength": 253,
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+    }
+  }
+}
