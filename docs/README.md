@@ -15,6 +15,7 @@
 | Build, CI, policy, dependencies, or setup | [Harness guide](development/harness.md), [dependency policy](development/dependency-policy.md) | [Engineering standards](development/engineering-standards.md), `make verify` |
 | Runtime-registry bundle or promotion | [Repository README](../README.md), the selected bundle README | Exact hashes, contract lock, `make runtime-registry` |
 | Control-plane chart or Kubernetes security | Chart values and schema under `charts/control-plane` | `make definitions`, rendered-object tests |
+| Image-backed native browser target | [Native search guide](native-search.md), chart under `charts/native-search` | [ADR 0001](decisions/0001-image-backed-native-search-chart.md), `make definitions`, synthetic render/rejection tests |
 | Pod-startup benchmark or kube-burner | [Pod-startup guide](pod-startup.md) | Workload definition, toolchain lock, focused tests |
 | Raw-result manifest assembly | [Raw-manifest guide](raw-manifests.md) | Contract snapshot and receipt fixtures |
 | Durable architecture or ownership decision | [ADR index](decisions/README.md) | Engineering standards and affected consumer documentation |

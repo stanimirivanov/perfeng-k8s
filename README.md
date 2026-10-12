@@ -33,6 +33,14 @@ and in `perfeng-environment`.
 
 ## Current scope
 
+The [native search chart](docs/native-search.md) packages the published controlled
+browser fixture as a bounded, token-free Linux AMD64 workload. Its caller must
+supply the candidate digest and external image-pull Secret. The publisher-provided
+identity is recorded under `releases/native-search/1.0.0`, separate from defaults
+and synthetic rendering values. No native runtime bundle or environment selection
+is promoted by this chart; GitOps deployment, HTTPS route cutover and accepted
+Windows qualification remain environment-owned M03 gates.
+
 The fixture under `testdata` is intentionally synthetic and must never be
 deployed. The first reviewed bundle under
 `bundles/local-kind-windows/1.0.0` binds the native Windows pod-startup flow to
@@ -135,6 +143,9 @@ separate because it requires a clean adjacent repository at the recorded revisio
 Chart validation also requires Helm. It renders the control-plane package with
 non-deployable test values and checks the workload identity, security context,
 external mounts, Service and exact cross-namespace permissions.
+It also strictly lints and renders the native search chart, rejects unsupported
+inputs and asserts candidate isolation, bounded resources and internal Service
+exposure without accessing a cluster.
 
 The pod-startup command defaults to a non-mutating preview. See
 [the benchmark guide](docs/pod-startup.md) for its explicit execution and

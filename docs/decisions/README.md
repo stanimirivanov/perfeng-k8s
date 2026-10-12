@@ -81,4 +81,6 @@ How will assumptions and consequences be verified?
 
 ## Index
 
-No ADRs have been accepted yet.
+| ADR | Status | Decision |
+|:--|:--|:--|
+| [0001](0001-image-backed-native-search-chart.md) | Proposed | Package the published controlled fixture without absorbing environment selection, HTTPS access or Windows qualification. |
