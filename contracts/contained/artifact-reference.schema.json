@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://perfeng.dev/schemas/artifact/v1/artifact-reference.schema.json",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "description": "a string matching the pattern ^[a-f0-9]{64}$",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "type": "object",
+  "required": [
+    "id",
+    "runId",
+    "kind",
+    "uri",
+    "sha256",
+    "sizeBytes",
+    "mediaType",
+    "format"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "runId": {
+      "type": "string",
+      "description": "Reference to the run metadata",
+      "pattern": "^perf-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "raw",
+        "normalized"
+      ]
+    },
+    "uri": {
+      "type": "string",
+      "format": "uri",
+      "description": "a string matching the pattern ^(s3|https):\\/\\/[^\\s?#]+$",
+      "pattern": "^(s3|https):\\/\\/[^\\s?#]+$"
+    },
+    "sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "sizeBytes": {
+      "type": "integer",
+      "description": "a non-negative number",
+      "title": "greaterThanOrEqualTo(0)",
+      "minimum": 0
+    },
+    "mediaType": {
+      "type": "string",
+      "description": "a string matching the pattern ^[a-z0-9][a-z0-9!#$&^_.+-]*\\/[a-z0-9][a-z0-9!#$&^_.+-]*$",
+      "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*\\/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+    },
+    "format": {
+      "type": "string",
+      "description": "a string matching the pattern ^[a-z0-9][a-z0-9./_-]*$",
+      "title": "minLength(1)",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9./_-]*$"
+    }
+  },
+  "additionalProperties": false,
+  "title": "Immutable artifact reference"
+}

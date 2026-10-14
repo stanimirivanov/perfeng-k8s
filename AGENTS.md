@@ -30,7 +30,9 @@ Ordinary ambiguity follows CONTRIBUTING.
 
 `perfeng-k8s` owns reviewed deployable runtime-registry bundles, reusable Kubernetes charts,
 platform workload definitions, immutable component/configuration promotion and offline deployment
-validation. It does not own application code, shared contract definitions, component image builds,
+validation. It also packages the reviewed upstream kube-burner executable with the small
+contained execution/capture/publication adapters documented in ADR 0002. It does not own application
+benchmark engines, shared contract definitions, other component image builds,
 Secrets, live-cluster reconciliation or the disposable local kind environment.
 
 - Deployable bundles bind exact files, hashes, images, principals and environment identities.

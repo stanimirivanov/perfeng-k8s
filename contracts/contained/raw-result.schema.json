@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://perfeng.dev/schemas/raw-result/v2/raw-result.schema.json",
+  "$defs": {
+    "version": {
+      "type": "string",
+      "description": "a string matching the pattern ^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "id": {
+      "type": "string",
+      "description": "a string matching the pattern ^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "sha256": {
+      "type": "string",
+      "description": "a string matching the pattern ^[a-f0-9]{64}$",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "executionArtifact": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "image"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "oci-image"
+              ]
+            },
+            "image": {
+              "type": "string",
+              "description": "a string matching the pattern ^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$",
+              "pattern": "^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "repository",
+            "gitSha",
+            "dependencyLock"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "source-checkout"
+              ]
+            },
+            "repository": {
+              "type": "string",
+              "format": "uri",
+              "description": "a string matching the pattern ^https:\\/\\/",
+              "pattern": "^https:\\/\\/"
+            },
+            "gitSha": {
+              "type": "string",
+              "description": "a string matching the pattern ^[a-f0-9]{40}$",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "dependencyLock": {
+              "type": "object",
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "$ref": "#/$defs/relativePath"
+                },
+                "sha256": {
+                  "$ref": "#/$defs/sha256"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "url",
+            "archiveSha256",
+            "executableSha256"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "release-archive"
+              ]
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "a string matching the pattern ^https:\\/\\/[^\\s@?#]+$",
+              "pattern": "^https:\\/\\/[^\\s@?#]+$"
+            },
+            "archiveSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "executableSha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "relativePath": {
+      "type": "string",
+      "description": "a string matching the pattern ^(?!\\/)(?!.*(?:^|\\/)\\.{1,2}(?:\\/|$))[A-Za-z0-9_./-]+$",
+      "pattern": "^(?!\\/)(?!.*(?:^|\\/)\\.{1,2}(?:\\/|$))[A-Za-z0-9_./-]+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "a string matching the pattern ^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:[0-5]\\d(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:[0-5]\\d(?:\\.\\d{1,6})?(?:Z|[+-]\\d{2}:\\d{2})$"
+    }
+  },
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "kind",
+    "contractsVersion",
+    "runId",
+    "testId",
+    "workload",
+    "producer",
+    "measurementWindow",
+    "createdAt",
+    "artifacts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "enum": [
+        2
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "RawResult"
+      ]
+    },
+    "contractsVersion": {
+      "$ref": "#/$defs/version"
+    },
+    "runId": {
+      "type": "string",
+      "description": "Reference to the run metadata",
+      "pattern": "^perf-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$"
+    },
+    "testId": {
+      "$ref": "#/$defs/id"
+    },
+    "workload": {
+      "type": "object",
+      "required": [
+        "id",
+        "version",
+        "sha256"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": false
+    },
+    "producer": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "artifact"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "artifact": {
+          "$ref": "#/$defs/executionArtifact"
+        }
+      },
+      "additionalProperties": false
+    },
+    "measurementWindow": {
+      "type": "object",
+      "required": [
+        "start",
+        "end"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "end": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "additionalProperties": false
+    },
+    "createdAt": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "runId",
+          "kind",
+          "uri",
+          "sha256",
+          "sizeBytes",
+          "mediaType",
+          "format"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "description": "Reference to the run metadata",
+            "pattern": "^perf-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "raw"
+            ]
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "description": "a string matching the pattern ^(s3|https):\\/\\/[^\\s?#]+$",
+            "pattern": "^(s3|https):\\/\\/[^\\s?#]+$"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "description": "a non-negative number",
+            "title": "greaterThanOrEqualTo(0)",
+            "minimum": 0
+          },
+          "mediaType": {
+            "type": "string",
+            "description": "a string matching the pattern ^[a-z0-9][a-z0-9!#$&^_.+-]*\\/[a-z0-9][a-z0-9!#$&^_.+-]*$",
+            "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*\\/[a-z0-9][a-z0-9!#$&^_.+-]*$"
+          },
+          "format": {
+            "type": "string",
+            "description": "a string matching the pattern ^[a-z0-9][a-z0-9./_-]*$",
+            "title": "minLength(1)",
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9./_-]*$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "uniqueItems": true,
+      "description": "an array of at least 1 item(s)",
+      "title": "minItems(1)",
+      "minItems": 1
+    }
+  },
+  "additionalProperties": false,
+  "title": "Raw measurement artifact manifest with execution provenance"
+}

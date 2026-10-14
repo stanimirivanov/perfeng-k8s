@@ -22,6 +22,11 @@ The root Makefile owns the stable command surface and CI invokes it directly. Th
 
 ## Extending the harness
 
+`make definitions` also strictly lints/renders the contained kube-burner chart
+with synthetic values and checks its permission/mount/resource boundaries. The
+image workflow separately verifies the built upstream binary and read-only,
+non-root execution. Neither path launches a live benchmark or promotes a bundle.
+
 `make definitions` includes the native search release-record and chart checks.
 Its rendering values are synthetic; the published provenance record is not an
 environment deployment selection. Helm schema and rendered-object regression

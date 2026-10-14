@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://perfeng.dev/schemas/environment/v1/environment.schema.json",
+  "type": "object",
+  "required": [
+    "cluster",
+    "fingerprint"
+  ],
+  "properties": {
+    "cluster": {
+      "type": "string",
+      "description": "Cluster identifier",
+      "title": "minLength(1)",
+      "minLength": 1
+    },
+    "fingerprint": {
+      "type": "string",
+      "description": "SHA256 fingerprint of environment characteristics",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "kubernetes": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Kubernetes version",
+          "pattern": "^v?\\d+\\.\\d+\\.\\d+$"
+        },
+        "nodeCount": {
+          "type": "integer",
+          "description": "a number greater than or equal to 1",
+          "title": "greaterThanOrEqualTo(1)",
+          "minimum": 1
+        },
+        "nodePools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "nodeModel": {
+                "type": "string"
+              },
+              "cpuArchitecture": {
+                "type": "string",
+                "enum": [
+                  "amd64",
+                  "arm64"
+                ]
+              },
+              "cpuCount": {
+                "type": "integer",
+                "description": "a number greater than or equal to 1",
+                "title": "greaterThanOrEqualTo(1)",
+                "minimum": 1
+              },
+              "memoryGiB": {
+                "type": "number",
+                "description": "a non-negative number",
+                "title": "greaterThanOrEqualTo(0)",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "runtime": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "containerRuntime": {
+          "type": "string"
+        },
+        "cni": {
+          "type": "string"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "kernel": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "application": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "configurationHash": {
+          "type": "string"
+        },
+        "featureFlags": {
+          "type": "object",
+          "required": [],
+          "properties": {},
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "compatibility": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "COMPATIBLE",
+            "PARTIALLY_COMPATIBLE",
+            "INCOMPATIBLE"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "description": "Compatibility evaluation"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Performance test environment specification",
+  "title": "Environment Specification"
+}

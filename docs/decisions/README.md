@@ -84,3 +84,4 @@ How will assumptions and consequences be verified?
 | ADR | Status | Decision |
 |:--|:--|:--|
 | [0001](0001-image-backed-native-search-chart.md) | Proposed | Package the published controlled fixture without absorbing environment selection, HTTPS access or Windows qualification. |
+| [0002](0002-contained-kube-burner-packaging.md) | Proposed | Package upstream kube-burner with contained Pod writes and verified publication, separately from runtime promotion. |

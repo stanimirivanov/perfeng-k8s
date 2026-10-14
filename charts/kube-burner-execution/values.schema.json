@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runId", "targetNamespace", "image", "imagePullSecret", "requestConfigMap", "requestSha256", "storageSecret", "s3Endpoint"],
+  "properties": {
+    "runId": {"type": "string", "pattern": "^perf-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$"},
+    "targetNamespace": {"type": "string", "pattern": "^perfeng-benchmark-perf-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}$"},
+    "image": {"type": "string", "pattern": "^ghcr\\.io/stanimirivanov/perfeng-kube-burner@sha256:[a-f0-9]{64}$"},
+    "imagePullSecret": {"$ref": "#/definitions/name"},
+    "requestConfigMap": {"$ref": "#/definitions/name"},
+    "requestSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "storageSecret": {"$ref": "#/definitions/name"},
+    "s3Endpoint": {"type": "string", "pattern": "^(https://[a-zA-Z0-9.-]+(?::[0-9]+)?/?|http://seaweedfs-s3\\.perf-platform\\.svc\\.cluster\\.local:8333)$"}
+  },
+  "definitions": {"name": {"type": "string", "maxLength": 63, "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"}}
+}

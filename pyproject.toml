@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Validation tooling for performance platform Kubernetes configuration"
 requires-python = ">=3.12"
 dependencies = [
+    "boto3>=1.42,<2",
     "jsonschema[format]>=4.26.0,<5",
     "PyYAML>=6.0.3,<7",
     "referencing>=0.37.0,<0.38",

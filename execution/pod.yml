@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: perfeng-pod-startup-{{.Iteration}}
+  namespace: __TARGET_NAMESPACE__
+  labels:
+    perfeng.io/run-id: __RUN_ID__
+    perfeng.io/benchmark: pod-startup-contained
+spec:
+  automountServiceAccountToken: false
+  enableServiceLinks: false
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 0
+  nodeSelector:
+    workload: sut
+    kubernetes.io/os: linux
+    kubernetes.io/arch: amd64
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: pause
+      image: registry.k8s.io/pause@sha256:278fb9dbcca9518083ad1e11276933a2e96f23de604a3a08cc3c80002767d24c
+      imagePullPolicy: Never
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      resources:
+        requests: {cpu: 1m, memory: 1Mi, ephemeral-storage: 64Ki}
+        limits: {cpu: 10m, memory: 16Mi, ephemeral-storage: 1Mi}
