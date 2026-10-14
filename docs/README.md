@@ -17,6 +17,7 @@
 | Control-plane chart or Kubernetes security | Chart values and schema under `charts/control-plane` | `make definitions`, rendered-object tests |
 | Image-backed native browser target | [Native search guide](native-search.md), chart under `charts/native-search` | [ADR 0001](decisions/0001-image-backed-native-search-chart.md), `make definitions`, synthetic render/rejection tests |
 | Pod-startup benchmark or kube-burner | [Pod-startup guide](pod-startup.md) | Workload definition, toolchain lock, focused tests |
+| Contained kube-burner package, publication or chart | [Contained execution guide](contained-kube-burner.md), [ADR 0002](decisions/0002-contained-kube-burner-packaging.md) | `make validate`, image workflow, `tests/test_contained.py` |
 | Raw-result manifest assembly | [Raw-manifest guide](raw-manifests.md) | Contract snapshot and receipt fixtures |
 | Durable architecture or ownership decision | [ADR index](decisions/README.md) | Engineering standards and affected consumer documentation |
 

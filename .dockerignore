@@ -1,0 +1,14 @@
+*
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!LICENSE
+!scripts/
+!scripts/**
+!contracts/
+!contracts/**
+!execution/
+!execution/**
+**/__pycache__
+!toolchain/
+!toolchain/**

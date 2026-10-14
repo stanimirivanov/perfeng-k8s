@@ -1,0 +1,29 @@
+metricsEndpoints:
+  - alias: local-results
+    indexer:
+      type: local
+      metricsDirectory: __METRICS_DIRECTORY__
+global:
+  gc: false
+  clusterHealth: false
+  requestTimeout: 5s
+  measurements:
+    - name: podLatency
+      timeseriesIndexer: local-results
+      quantilesIndexer: local-results
+jobs:
+  - name: pod-startup-smoke
+    jobIterations: 10
+    qps: 2
+    burst: 2
+    cleanup: false
+    gc: false
+    preLoadImages: false
+    namespacedIterations: false
+    namespace: __TARGET_NAMESPACE__
+    maxWaitTimeout: 60s
+    waitWhenFinished: true
+    podWait: false
+    objects:
+      - objectTemplate: pod.yml
+        replicas: 1

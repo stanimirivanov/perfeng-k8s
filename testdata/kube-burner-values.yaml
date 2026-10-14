@@ -1,0 +1,9 @@
+# Synthetic offline rendering only; not a deployment selection.
+runId: perf-20261014-120000-abcdef12
+targetNamespace: perfeng-benchmark-perf-20261014-120000-abcdef12
+image: ghcr.io/stanimirivanov/perfeng-kube-burner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+imagePullSecret: synthetic-registry
+requestConfigMap: synthetic-request
+requestSha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+storageSecret: synthetic-storage
+s3Endpoint: http://seaweedfs-s3.perf-platform.svc.cluster.local:8333

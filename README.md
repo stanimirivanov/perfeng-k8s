@@ -33,6 +33,11 @@ and in `perfeng-environment`.
 
 ## Current scope
 
+The [contained kube-burner package](docs/contained-kube-burner.md) adds an opt-in
+Linux AMD64 image and chart for bounded, Run-scoped pod startup. It separates
+scoped Kubernetes execution from verified storage publication. No runtime bundle,
+environment selection or live workload is promoted by this package.
+
 The [native search chart](docs/native-search.md) packages the published controlled
 browser fixture as a bounded, token-free Linux AMD64 workload. Its caller must
 supply the candidate digest and external image-pull Secret. The publisher-provided

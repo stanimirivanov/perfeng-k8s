@@ -1,0 +1,6 @@
+apiVersion: v2
+name: kube-burner-execution
+description: Contained per-Run kube-burner execution with a separate verified publisher
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

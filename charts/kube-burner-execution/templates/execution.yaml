@@ -1,0 +1,167 @@
+{{- if ne .Release.Namespace "perf-generators" }}
+{{- fail "Contained executor must use perf-generators" }}
+{{- end }}
+{{- if ne .Values.targetNamespace (printf "perfeng-benchmark-%s" .Values.runId) }}
+{{- fail "Target namespace must belong to the selected Run" }}
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}
+rules:
+  - apiGroups: [""]
+    resources: [pods, events]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, list]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [namespaces]
+    resourceNames: [kube-system, {{ .Values.targetNamespace }}]
+    verbs: [get]
+  - nonResourceURLs: [/api, /api/*, /apis, /apis/*, /version]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Values.targetNamespace }}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [resourcequotas]
+    resourceNames: [benchmark-budget]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Values.targetNamespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    perfeng.io/run-id: {{ .Values.runId }}
+    perfeng.io/component: kube-burner
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        perfeng.io/run-id: {{ .Values.runId }}
+        perfeng.io/component: kube-burner
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 15
+      imagePullSecrets: [{name: {{ .Values.imagePullSecret }}}]
+      nodeSelector:
+        workload: performance-generator
+        kubernetes.io/os: linux
+        kubernetes.io/arch: amd64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        - name: benchmark
+          image: {{ .Values.image | quote }}
+          imagePullPolicy: IfNotPresent
+          args: [run, --request, /inputs/request.json, --request-sha256, {{ .Values.requestSha256 | quote }}]
+          env:
+            - name: PERFENG_EXECUTOR_POD_UID
+              valueFrom: {fieldRef: {fieldPath: metadata.uid}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 500m, memory: 256Mi, ephemeral-storage: 128Mi}
+            limits: {cpu: "1", memory: 512Mi, ephemeral-storage: 256Mi}
+          volumeMounts:
+            - {name: inputs, mountPath: /inputs/request.json, subPath: request.json, readOnly: true}
+            - {name: inputs, mountPath: /inputs/environment.json, subPath: environment.json, readOnly: true}
+            - {name: api, mountPath: /var/run/secrets/kubernetes.io/serviceaccount, readOnly: true}
+            - {name: results, mountPath: /results}
+            - {name: runner-tmp, mountPath: /tmp}
+      containers:
+        - name: publish-raw
+          image: {{ .Values.image | quote }}
+          imagePullPolicy: IfNotPresent
+          args: [publish, --request, /inputs/request.json, --request-sha256, {{ .Values.requestSha256 | quote }}]
+          env:
+            - {name: PERFENG_S3_ENDPOINT, value: {{ .Values.s3Endpoint | quote }}}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: {secretKeyRef: {name: {{ .Values.storageSecret }}, key: access-key-id}}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: {secretKeyRef: {name: {{ .Values.storageSecret }}, key: secret-access-key}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi, ephemeral-storage: 64Mi}
+            limits: {cpu: 500m, memory: 256Mi, ephemeral-storage: 256Mi}
+          volumeMounts:
+            - {name: inputs, mountPath: /inputs/request.json, subPath: request.json, readOnly: true}
+            - {name: inputs, mountPath: /inputs/environment.json, subPath: environment.json, readOnly: true}
+            - {name: results, mountPath: /results, readOnly: true}
+            - {name: publisher-tmp, mountPath: /tmp}
+      volumes:
+        - name: inputs
+          configMap: {name: {{ .Values.requestConfigMap }}}
+        - name: api
+          projected:
+            sources:
+              - serviceAccountToken: {path: token, expirationSeconds: 600}
+              - configMap:
+                  name: kube-root-ca.crt
+                  items: [{key: ca.crt, path: ca.crt}]
+        - {name: results, emptyDir: {sizeLimit: 128Mi}}
+        - {name: runner-tmp, emptyDir: {sizeLimit: 32Mi}}
+        - {name: publisher-tmp, emptyDir: {sizeLimit: 32Mi}}

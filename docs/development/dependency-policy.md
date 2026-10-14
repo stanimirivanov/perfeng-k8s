@@ -14,6 +14,15 @@ Runtime validator libraries belong in project dependencies and development-only 
 
 ## Boundary tools and immutable identities
 
+The contained publisher uses the maintained Apache-2.0 boto3/botocore S3 SDK,
+locked in `uv.lock`, for conditional writes and bounded read-back verification.
+Its transitive additions are Apache-2.0 s3transfer and MIT jmespath/urllib3;
+existing python-dateutil/six dependencies are reused. Review the graph with
+`make supply-chain`. Keep SDK client construction separate from publication
+logic; do not implement request signing in repository code. The runner never
+receives storage credentials. The reviewed upstream kube-burner executable and
+its Apache-2.0 license are packaged without modifying its implementation.
+
 Helm is required for offline chart validation. Go is required only for the pinned control-plane runtime loader. kube-burner acquisition follows the checked-in toolchain document and its checksums. Live Kubernetes clients are never hidden prerequisites of the repository-local inner loop.
 
 Workflow `uses:` entries may use reviewed release tags or commit SHAs; repository policy does not enforce one reference style. Exact image digests, content hashes, release archives, contract revisions, and the runtime-validator commit remain unchanged unless the issue explicitly reviews that selection.
