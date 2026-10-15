@@ -190,9 +190,29 @@ def validate_objects(objects: Sequence[Mapping[str, Any]]) -> None:
         "runner must not receive storage credentials",
     )
     require(
-        {value["name"] for value in publisher["env"]}
+        len(publisher["env"]) == 3
+        and {value["name"] for value in publisher["env"]}
         == {"PERFENG_S3_ENDPOINT", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
         "publisher environment differs",
+    )
+    environment = {value["name"]: value for value in publisher["env"]}
+    storage_secret = (
+        environment["AWS_ACCESS_KEY_ID"].get("valueFrom", {}).get("secretKeyRef", {}).get("name")
+    )
+    require(
+        bool(storage_secret)
+        and all(
+            environment[name]
+            == {
+                "name": name,
+                "valueFrom": {"secretKeyRef": {"name": storage_secret, "key": key}},
+            }
+            for name, key in (
+                ("AWS_ACCESS_KEY_ID", "access-key"),
+                ("AWS_SECRET_ACCESS_KEY", "secret-key"),
+            )
+        ),
+        "publisher credentials must reference access-key and secret-key in one external Secret",
     )
     for container in (runner, publisher):
         require("envFrom" not in container, "whole-Secret imports are forbidden")

@@ -11,7 +11,7 @@
     "requestConfigMap": {"$ref": "#/definitions/name"},
     "requestSha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "storageSecret": {"$ref": "#/definitions/name"},
-    "s3Endpoint": {"type": "string", "pattern": "^(https://[a-zA-Z0-9.-]+(?::[0-9]+)?/?|http://seaweedfs-s3\\.perf-platform\\.svc\\.cluster\\.local:8333)$"}
+    "s3Endpoint": {"type": "string", "pattern": "^(https://[a-zA-Z0-9.-]+(?::[0-9]+)?/?|http://seaweedfs\\.perf-platform\\.svc\\.cluster\\.local:8333)$"}
   },
   "definitions": {"name": {"type": "string", "maxLength": 63, "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"}}
 }
