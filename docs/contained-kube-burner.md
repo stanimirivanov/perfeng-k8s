@@ -171,8 +171,11 @@ The upstream Apache-2.0 license is retained in the image.
 After merge, run **Build and optionally publish contained kube-burner** with
 `publish=true` on main and retain its verified image/source/platform summary.
 This is an operator-authorized publication, not automatic environment promotion.
-Do not invent a digest before this workflow succeeds. PR 7 will compose the real
-digest with compatible dispatch/analysis and a reviewed runtime bundle.
+Do not invent a digest before this workflow succeeds. The reviewed
+[integration bundle 1.0.0](../bundles/local-kind-integration/1.0.0/README.md)
+now composes the corrected runner, compatible analysis and accepted environment
+with reservation/cleanup-aware runtime validation. Environment deployment and
+live milestone acceptance remain separate gates.
 Endpoint or publisher compatibility fixes require a newly published runner image
 and matching control-plane template before promotion; an older image digest
 does not acquire the correction when source or chart files change. Existing
@@ -180,9 +183,10 @@ immutable bundles remain unchanged.
 
 ## Rollout, troubleshooting and rollback
 
-No current environment or published bundle changes in this package. Before future
-deployment, dispatch/reservations, scoped lifecycle recovery and OCI analysis must
-be implemented. A missing Metrics API remains a prerequisite failure; do not
+Packaging alone changes no current environment or historical bundle. Deployment
+requires the compatible dispatch/reservation and cleanup implementation, OCI
+analysis, reviewed controller permissions and the selected integration bundle.
+A missing Metrics API remains a prerequisite failure; do not
 install metrics-server or disable TLS as an automatic repair.
 
 - Initial guard failure: inspect request hashes, actual UIDs, labels, quota,
@@ -193,7 +197,7 @@ install metrics-server or disable TLS as an automatic repair.
   are safe; conflicting objects require investigation, never overwrite/delete.
 - Cancellation/cleanup: the control plane must verify persisted ownership and
   incarnation before removing its resources, then release the exclusive reservation.
-  This is pending PR 6 and is not delegated to kube-burner.
+  This is not delegated to kube-burner or bypassed by image publication.
 
 Rollback selects the previous reviewed runtime, disables new dispatch and retains
 existing evidence/resources for explicit recovery. Do not rewrite old bundles,
