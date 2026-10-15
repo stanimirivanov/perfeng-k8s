@@ -22,6 +22,13 @@ The root Makefile owns the stable command surface and CI invokes it directly. Th
 
 ## Extending the harness
 
+`make definitions` also checks the M04 integration bundle's exact image/source,
+environment, workload, policy and checksum closure. Its rejection tests rehash
+tampered files to prove that a self-consistent checksum cannot authorize another
+cohort, endpoint or credential boundary. `make runtime-registry` now pins the
+contained-dispatch-aware loader and validates this bundle as well as every
+historical bundle; do not repin or alter old bundles to satisfy the new check.
+
 `make definitions` also strictly lints/renders the contained kube-burner chart
 with synthetic values and checks its permission/mount/resource boundaries. The
 image workflow separately verifies the built upstream binary and read-only,

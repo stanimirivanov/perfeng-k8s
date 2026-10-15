@@ -1,5 +1,5 @@
 CONTROL_PLANE_ROOT ?= ../perfeng-control-plane
-REGISTRY_VALIDATOR_REVISION := 403e2f2dd0c07854593020b6f8da4979d808b21d
+REGISTRY_VALIDATOR_REVISION := 703d9d11fda3f94e52b4cf4fad749d73cf52247f
 
 .PHONY: help bootstrap doctor fmt fmt-check docs-check check test definitions verify supply-chain validate runtime-registry
 
@@ -63,3 +63,4 @@ runtime-registry:
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-windows/1.1.1" -manifest registry.json
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-windows/1.1.2" -manifest registry.json
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-windows/1.1.3" -manifest registry.json
+	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-integration/1.0.0" -manifest registry.json

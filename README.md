@@ -33,6 +33,13 @@ and in `perfeng-environment`.
 
 ## Current scope
 
+The [local kind integration bundle 1.0.0](bundles/local-kind-integration/1.0.0/README.md)
+promotes the corrected contained kube-burner image and OCI-aware analysis reader
+for the accepted M04 environment, alongside k6 checkout. It pins reservation and
+cleanup-aware runtime validation, keeps baseline cohorts separate and leaves all
+historical bundle bytes unchanged. Environment selection, deployment permissions
+and live decision-loop acceptance remain separate follow-up gates.
+
 The [contained kube-burner package](docs/contained-kube-burner.md) adds an opt-in
 Linux AMD64 image and chart for bounded, Run-scoped pod startup. It separates
 scoped Kubernetes execution from verified storage publication. No runtime bundle,

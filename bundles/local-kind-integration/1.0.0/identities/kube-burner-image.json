@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "name": "perfeng-kube-burner",
+  "version": "1.0.0",
+  "image": "ghcr.io/stanimirivanov/perfeng-kube-burner@sha256:b4f6a90225e14f67c5c2fa0bc2657eb871e92f7543b6b1027eb618cff633d612",
+  "source": {
+    "repository": "https://github.com/stanimirivanov/perfeng-k8s",
+    "gitSha": "0e026fa33e4d7e1573e081786266efd17e9a7460"
+  },
+  "platform": "linux/amd64"
+}

@@ -12,7 +12,7 @@ from typing import Any, Never
 
 import yaml
 
-from scripts import contained_definition, contracts, deployment, native_search
+from scripts import contained_definition, contracts, deployment, kubernetes_bundle, native_search
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKLOAD_ROOT = ROOT / "workloads" / "pod-startup"
@@ -1478,6 +1478,7 @@ def validate() -> None:
     deployment.validate_control_plane_chart()
     native_search.validate()
     contained_definition.validate()
+    kubernetes_bundle.validate()
 
 
 def main() -> int:
