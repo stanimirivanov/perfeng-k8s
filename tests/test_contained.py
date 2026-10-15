@@ -6,6 +6,7 @@ import copy
 import io
 import itertools
 import json
+import os
 import tempfile
 import unittest
 from datetime import UTC, datetime, timedelta
@@ -199,6 +200,77 @@ class Storage:
         }
 
 
+class PublisherClientTests(unittest.TestCase):
+    def test_reviewed_endpoints_use_only_explicit_publisher_credentials(self):
+        for endpoint in (
+            "http://seaweedfs.perf-platform.svc.cluster.local:8333",
+            "https://storage.example.test",
+            "https://storage.example.test:9443/",
+        ):
+            with (
+                self.subTest(endpoint=endpoint),
+                patch.dict(
+                    os.environ,
+                    {
+                        "PERFENG_S3_ENDPOINT": endpoint,
+                        "AWS_ACCESS_KEY_ID": "synthetic-access",
+                        "AWS_SECRET_ACCESS_KEY": "synthetic-secret",
+                    },
+                    clear=True,
+                ),
+                patch.object(publisher.boto3, "client") as sdk,
+            ):
+                self.assertIs(publisher.client(), sdk.return_value)
+                sdk.assert_called_once()
+                self.assertEqual(sdk.call_args.args, ("s3",))
+                options = sdk.call_args.kwargs
+                self.assertEqual(options["endpoint_url"], endpoint)
+                self.assertEqual(options["aws_access_key_id"], "synthetic-access")
+                self.assertEqual(options["aws_secret_access_key"], "synthetic-secret")
+                self.assertEqual(options["config"].proxies, {})
+                self.assertEqual(options["config"].retries, {"total_max_attempts": 2})
+
+    def test_unreviewed_http_and_decorated_endpoints_never_create_a_client(self):
+        for endpoint in (
+            "http://seaweedfs-s3.perf-platform.svc.cluster.local:8333",
+            "http://storage.example.test:8333",
+            "http://seaweedfs.perf-platform.svc.cluster.local.evil.test:8333",
+            "http://seaweedfs.perf-platform.svc.cluster.local:8334",
+            "http://seaweedfs.perf-platform.svc.cluster.local:8333/",
+            "http://seaweedfs.perf-platform.svc.cluster.local:8333?token=value",
+            "http://seaweedfs.perf-platform.svc.cluster.local:8333#fragment",
+            "https://user:password@storage.example.test",
+            "https://storage.example.test/bucket",
+            "https://storage.example.test?token=value",
+            "https://storage.example.test#fragment",
+        ):
+            with (
+                self.subTest(endpoint=endpoint),
+                patch.dict(os.environ, {"PERFENG_S3_ENDPOINT": endpoint}, clear=True),
+                patch.object(publisher.boto3, "client") as sdk,
+            ):
+                with self.assertRaises(ValueError):
+                    publisher.client()
+                sdk.assert_not_called()
+
+    def test_missing_credentials_never_fall_back_to_sdk_discovery(self):
+        for missing in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+            environment = {
+                "PERFENG_S3_ENDPOINT": "http://seaweedfs.perf-platform.svc.cluster.local:8333",
+                "AWS_ACCESS_KEY_ID": "synthetic-access",
+                "AWS_SECRET_ACCESS_KEY": "synthetic-secret",
+            }
+            del environment[missing]
+            with (
+                self.subTest(missing=missing),
+                patch.dict(os.environ, environment, clear=True),
+                patch.object(publisher.boto3, "client") as sdk,
+            ):
+                with self.assertRaises(KeyError):
+                    publisher.client()
+                sdk.assert_not_called()
+
+
 class ContainedTests(unittest.TestCase):
     def setUp(self):
         clock = patch.object(observation, "now", return_value=START + timedelta(seconds=60))
@@ -383,6 +455,56 @@ class ContainedTests(unittest.TestCase):
         role["rules"][0]["verbs"].append("delete")
         with self.assertRaises(ValueError):
             definition.validate_objects(objects)
+
+    def test_chart_uses_existing_uploader_secret_keys_and_rejects_key_drift(self):
+        objects = definition.render(
+            "s3Endpoint=http://seaweedfs.perf-platform.svc.cluster.local:8333"
+        )
+        job = next(value for value in objects if value["kind"] == "Job")
+        environment = job["spec"]["template"]["spec"]["containers"][0]["env"]
+        self.assertEqual(
+            environment,
+            [
+                {
+                    "name": "PERFENG_S3_ENDPOINT",
+                    "value": "http://seaweedfs.perf-platform.svc.cluster.local:8333",
+                },
+                {
+                    "name": "AWS_ACCESS_KEY_ID",
+                    "valueFrom": {
+                        "secretKeyRef": {"name": "synthetic-storage", "key": "access-key"}
+                    },
+                },
+                {
+                    "name": "AWS_SECRET_ACCESS_KEY",
+                    "valueFrom": {
+                        "secretKeyRef": {"name": "synthetic-storage", "key": "secret-key"}
+                    },
+                },
+            ],
+        )
+        definition.validate_objects(objects)
+        for index, key in ((1, "access-key-id"), (2, "secret-access-key")):
+            with self.subTest(key=key):
+                altered = copy.deepcopy(objects)
+                job = next(value for value in altered if value["kind"] == "Job")
+                job["spec"]["template"]["spec"]["containers"][0]["env"][index]["valueFrom"][
+                    "secretKeyRef"
+                ]["key"] = key
+                with self.assertRaisesRegex(ValueError, "publisher credentials"):
+                    definition.validate_objects(altered)
+
+    def test_chart_accepts_https_and_rejects_obsolete_or_unreviewed_http_endpoints(self):
+        definition.validate_objects(definition.render("s3Endpoint=https://storage.example.test"))
+        for endpoint in (
+            "http://seaweedfs-s3.perf-platform.svc.cluster.local:8333",
+            "http://storage.example.test:8333",
+            "http://seaweedfs.perf-platform.svc.cluster.local.evil.test:8333",
+            "http://seaweedfs.perf-platform.svc.cluster.local:8334",
+            "http://seaweedfs.perf-platform.svc.cluster.local:8333/",
+        ):
+            with self.subTest(endpoint=endpoint):
+                definition.render("s3Endpoint=" + endpoint, succeeds=False)
 
     def test_supervised_success_freezes_complete_inputs_before_publication(self):
         binary = self.root / "binary"

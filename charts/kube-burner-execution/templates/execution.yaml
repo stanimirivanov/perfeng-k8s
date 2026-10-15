@@ -137,9 +137,9 @@ spec:
           env:
             - {name: PERFENG_S3_ENDPOINT, value: {{ .Values.s3Endpoint | quote }}}
             - name: AWS_ACCESS_KEY_ID
-              valueFrom: {secretKeyRef: {name: {{ .Values.storageSecret }}, key: access-key-id}}
+              valueFrom: {secretKeyRef: {name: {{ .Values.storageSecret }}, key: access-key}}
             - name: AWS_SECRET_ACCESS_KEY
-              valueFrom: {secretKeyRef: {name: {{ .Values.storageSecret }}, key: secret-access-key}}
+              valueFrom: {secretKeyRef: {name: {{ .Values.storageSecret }}, key: secret-key}}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

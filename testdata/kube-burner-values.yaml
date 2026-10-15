@@ -6,4 +6,4 @@ imagePullSecret: synthetic-registry
 requestConfigMap: synthetic-request
 requestSha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 storageSecret: synthetic-storage
-s3Endpoint: http://seaweedfs-s3.perf-platform.svc.cluster.local:8333
+s3Endpoint: http://seaweedfs.perf-platform.svc.cluster.local:8333

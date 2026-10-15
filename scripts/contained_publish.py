@@ -39,7 +39,7 @@ def client():
         or parsed.path not in {"", "/"}
     ):
         raise ValueError("Invalid reviewed S3 endpoint")
-    local = endpoint == "http://seaweedfs-s3.perf-platform.svc.cluster.local:8333"
+    local = endpoint == "http://seaweedfs.perf-platform.svc.cluster.local:8333"
     if parsed.scheme != "https" and not local:
         raise ValueError("S3 endpoint requires TLS except the reviewed local service")
     return boto3.client(

@@ -146,6 +146,14 @@ discover instance credentials. The reviewed local SeaweedFS service is the only
 HTTP exception; other endpoints require TLS. No credential or signed URL appears
 in evidence or operational errors.
 
+The exact local endpoint is `http://seaweedfs.perf-platform.svc.cluster.local:8333`,
+matching the environment-owned `seaweedfs` Service. The caller's `storageSecret`
+must exist in `perf-generators`, with `access-key` and `secret-key` entries for
+the restricted uploader (locally `perfeng-s3-uploader-auth`). Only the publisher
+maps these keys to `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. No Service
+alias, copied credentials or Secret rotation is needed. The former `seaweedfs-s3`
+HTTP alias and alternate key names are unsupported.
+
 ## Build and verification
 
 Run `make verify` and `make validate` with Helm. They cover strict lint/rendering,
@@ -165,6 +173,10 @@ After merge, run **Build and optionally publish contained kube-burner** with
 This is an operator-authorized publication, not automatic environment promotion.
 Do not invent a digest before this workflow succeeds. PR 7 will compose the real
 digest with compatible dispatch/analysis and a reviewed runtime bundle.
+Endpoint or publisher compatibility fixes require a newly published runner image
+and matching control-plane template before promotion; an older image digest
+does not acquire the correction when source or chart files change. Existing
+immutable bundles remain unchanged.
 
 ## Rollout, troubleshooting and rollback
 
