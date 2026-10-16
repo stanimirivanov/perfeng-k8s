@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-- Run `make bootstrap` once, `make verify` for repository-local work, and `make validate` before handoff.
+- Run `make bootstrap` once, `make verify` offline for repository-local work, and `make validate` before handoff; its vulnerability audit needs current advisory data.
 - `make definitions` is the meaningful architecture and security gate for charts, workloads, fixtures, and immutable bundles.
 - `make runtime-registry` is a specialized consumer-compatibility check using one exact clean control-plane revision.
 - Live Kubernetes execution and bundle promotion are never implied by offline validation.
@@ -12,9 +12,9 @@
 | Tier | Command | Purpose and constraints |
 |:--|:--|:--|
 | Setup | `make bootstrap` | Resolve exact Python dependencies; network may be required. |
-| Inner loop | `make verify` | Run documentation, format, lint, type, unit, and repository-definition checks. Helm is required for chart rendering. |
+| Inner loop | `make verify` | Run documentation, format, lint, type, unit, and repository-definition checks offline after bootstrap. Helm is required for chart rendering. |
 | Supply chain | `make supply-chain` | Verify the lock and query vulnerability data. |
-| Complete repository acceptance | `make validate` | Aggregate verification and supply-chain checks. |
+| Complete repository acceptance | `make validate` | Aggregate offline verification and supply-chain checks; the advisory audit may need network access. |
 | Runtime consumer compatibility | `make runtime-registry` | Validate all fixtures and bundles through the exact pinned clean control-plane loader. |
 | Live execution | Explicit benchmark or GitOps command | Requires an authorized target, dedicated kubeconfig/context, and the focused operating guide. |
 

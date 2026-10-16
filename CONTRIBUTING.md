@@ -182,7 +182,9 @@ Do not store task-specific issue bodies, PR descriptions or handoff notes in the
 Read-only inspection is allowed when relevant. Filesystem, Kubernetes, registry, GitHub and other
 mutations MUST remain within requested scope and authority.
 
-- Validation is offline and renders with non-deployable synthetic values.
+- Repository-local verification is offline after dependency bootstrap and renders
+  with non-deployable synthetic values. Complete acceptance also queries current
+  vulnerability data through `make supply-chain` and may require network access.
 - Charts do not create credentials, authentication documents, runtime Secrets or environment-owned
   ConfigMaps.
 - Direct benchmark execution defaults to preview and requires an explicit kubeconfig, context and

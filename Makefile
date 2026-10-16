@@ -1,5 +1,6 @@
 CONTROL_PLANE_ROOT ?= ../perfeng-control-plane
 REGISTRY_VALIDATOR_REVISION := 703d9d11fda3f94e52b4cf4fad749d73cf52247f
+UV_RUN := uv run --locked --offline
 
 .PHONY: help bootstrap doctor fmt fmt-check docs-check check test definitions verify supply-chain validate runtime-registry
 
@@ -24,28 +25,28 @@ bootstrap:
 doctor:
 	@git --version
 	@uv --version
-	@uv run --locked python --version
+	@$(UV_RUN) python --version
 	@helm version --short
 	@$(MAKE) --version
 
 fmt:
-	uv run --locked ruff format scripts tests
+	$(UV_RUN) ruff format scripts tests
 
 fmt-check:
-	uv run --locked ruff format --check .
+	$(UV_RUN) ruff format --check .
 
 docs-check:
-	uv run --locked python scripts/repository_policy.py
+	$(UV_RUN) python scripts/repository_policy.py
 
 check: fmt-check docs-check
-	uv run --locked ruff check .
-	uv run --locked ty check
+	$(UV_RUN) ruff check .
+	$(UV_RUN) ty check
 
 test:
-	uv run --locked python -m unittest discover -s tests -v
+	$(UV_RUN) python -m unittest discover -s tests -v
 
 definitions:
-	uv run --locked python -m scripts.validate
+	$(UV_RUN) python -m scripts.validate
 
 verify: check test definitions
 
@@ -56,7 +57,7 @@ supply-chain:
 validate: verify supply-chain
 
 runtime-registry:
-	uv run --locked python -c "import subprocess, sys; root=r'$(CONTROL_PLANE_ROOT)'; expected='$(REGISTRY_VALIDATOR_REVISION)'; actual=subprocess.check_output(['git', '-C', root, 'rev-parse', 'HEAD'], text=True).strip(); dirty=subprocess.check_output(['git', '-C', root, 'status', '--porcelain'], text=True).strip(); sys.exit(0 if actual == expected and not dirty else f'Expected clean control plane {expected}, found {actual}' + (' with local changes' if dirty else ''))"
+	$(UV_RUN) python -c "import subprocess, sys; root=r'$(CONTROL_PLANE_ROOT)'; expected='$(REGISTRY_VALIDATOR_REVISION)'; actual=subprocess.check_output(['git', '-C', root, 'rev-parse', 'HEAD'], text=True).strip(); dirty=subprocess.check_output(['git', '-C', root, 'status', '--porcelain'], text=True).strip(); sys.exit(0 if actual == expected and not dirty else f'Expected clean control plane {expected}, found {actual}' + (' with local changes' if dirty else ''))"
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/testdata/runtime-registry" -manifest registry.json
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-windows/1.0.0" -manifest registry.json
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-windows/1.1.0" -manifest registry.json
