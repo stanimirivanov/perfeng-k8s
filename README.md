@@ -108,6 +108,10 @@ authentication and reviewed-registry objects. The chart never creates Secrets
 or ConfigMaps. The Pod references a required, externally managed image-pull
 Secret in its release namespace; the chart never receives registry credentials.
 Its synthetic rendering values under `testdata` are not a deployment selection.
+`packages/runtime-inputs/local-kind-integration-1.0.0` stages the current
+non-secret ConfigMaps as a separate [Kustomize package](docs/runtime-input-package.md).
+The active environment has not selected it; Secrets and the chart's external
+references retain their existing owners.
 `perfeng-environment` must supply the real image digest, Secret name and
 configuration when composing an environment. The runtime ConfigMap owns the
 complete non-secret process policy, including `PERFENG_HTTP_ADDRESS`; its

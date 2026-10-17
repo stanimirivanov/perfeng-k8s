@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Run `make bootstrap` once, `make verify` offline for repository-local work, and `make validate` before handoff; its vulnerability audit needs current advisory data.
-- `make definitions` is the meaningful architecture and security gate for charts, workloads, fixtures, and immutable bundles.
+- `make definitions` is the meaningful architecture and security gate for charts, workloads, fixtures, and immutable bundles; tests also render the staged runtime input package with kubectl.
 - `make runtime-registry` is a specialized consumer-compatibility check using one exact clean control-plane revision.
 - Live Kubernetes execution and bundle promotion are never implied by offline validation.
 
@@ -18,7 +18,12 @@
 | Runtime consumer compatibility | `make runtime-registry` | Validate all fixtures and bundles through the exact pinned clean control-plane loader. |
 | Live execution | Explicit benchmark or GitOps command | Requires an authorized target, dedicated kubeconfig/context, and the focused operating guide. |
 
-The root Makefile owns the stable command surface and CI invokes it directly. The repository's domain validator, rather than a generic package-layer rule, enforces the important deployment architecture: immutable identities, least privilege, chart ownership, fixture separation, hashes, and rendered behavior.
+The root Makefile owns the stable command surface and CI invokes it directly.
+Helm and kubectl are required for offline chart and Kustomize rendering;
+CI pins kubectl v1.36.4. The repository's domain validator, rather than a
+generic package-layer rule, enforces the important deployment architecture:
+immutable identities, least privilege, chart ownership, fixture separation,
+hashes, and rendered behavior.
 
 ## Extending the harness
 
