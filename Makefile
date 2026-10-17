@@ -27,6 +27,7 @@ doctor:
 	@uv --version
 	@$(UV_RUN) python --version
 	@helm version --short
+	@kubectl version --client
 	@$(MAKE) --version
 
 fmt:
