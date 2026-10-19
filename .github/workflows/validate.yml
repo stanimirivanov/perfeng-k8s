@@ -34,7 +34,7 @@ jobs:
         with:
           version: v4.1.4
       - name: Install kubectl for offline Kustomize rendering
-        uses: azure/setup-kubectl@v5.1.0
+        uses: azure/setup-kubectl@v5.2.0
         with:
           version: v1.36.4
       - name: Install GNU Make on Windows
