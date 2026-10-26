@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,50 @@ FILES = {
     "policies/pod-startup.json",
     "policies/checkout-smoke.json",
 }
+
+
+@dataclass(frozen=True)
+class Promotion:
+    """Reviewed evidence bindings; profile version and execution identities stay fixed."""
+
+    version: str
+    environment_sha256: str
+    fingerprint: str
+    cluster_uid: str
+    receipt_sha256: str
+    receipt_size: int
+    capture_start: str
+    capture_end: str
+    source_revision: str
+
+    @property
+    def root(self) -> Path:
+        return ROOT / "bundles/local-kind-integration" / self.version
+
+
+ORIGINAL = Promotion(
+    "1.0.0",
+    ENVIRONMENT_SHA256,
+    FINGERPRINT,
+    CLUSTER_UID,
+    "6e3779991cdaace896a1a00a4d7fd7f118a071080bed4d0c6d561653d6251217",
+    4285,
+    "2026-10-15T10:46:03.756000Z",
+    "2026-10-15T10:46:31.524271Z",
+    "3924b55a6c3119609491f45447a09541e219f353",
+)
+REBUILT = Promotion(
+    "1.0.1",
+    "9aca1ceb38d881656850b2866c6f53301cc520cfa0aca30fd33dd90aefbeb036",
+    "017ef80efa09fef2817922182248fc280212acaaf5308ada8b9358a2824daeef",
+    "257a288d-9e0f-4956-a0e3-9c4104de6476",
+    "4d32f63e2da8a5cc53174b4d714f8a23a0a529754a6387d1397537f2cc9f4c43",
+    4285,
+    "2026-10-26T06:56:34.806000Z",
+    "2026-10-26T06:57:04.176637Z",
+    "568b8cae45f57f8b748dd6c9ee615bf3034c1e2c",
+)
+PROMOTIONS = (ORIGINAL, REBUILT)
 
 
 def require(condition: bool, message: str) -> None:
@@ -136,7 +181,7 @@ def policy() -> dict[str, Any]:
     return value
 
 
-def registry(root: Path) -> dict[str, Any]:
+def registry(root: Path, promotion: Promotion = ORIGINAL) -> dict[str, Any]:
     """Construct the closed selection; k6 retains its historical environment and workload cohort."""
     previous = inputs.object_json(inputs.read(LEGACY / "registry.json"))
     benchmark, checkout = copy.deepcopy(previous["entries"])
@@ -166,12 +211,12 @@ def registry(root: Path) -> dict[str, Any]:
         environment={
             "id": "local-kind-integration",
             "version": "1.0.0",
-            "sha256": ENVIRONMENT_SHA256,
-            "fingerprint": FINGERPRINT,
+            "sha256": promotion.environment_sha256,
+            "fingerprint": promotion.fingerprint,
         },
         benchmark={
             "clusterId": "perfeng-local",
-            "clusterUid": CLUSTER_UID,
+            "clusterUid": promotion.cluster_uid,
             "environmentFile": "identities/environment.json",
             "templateSha256": inputs.digest(inputs.read(inputs.PACKAGE / "pod.yml")),
             "bucket": "perfeng-artifacts",
@@ -180,7 +225,7 @@ def registry(root: Path) -> dict[str, Any]:
     return {"schemaVersion": 1, "entries": [benchmark, checkout]}
 
 
-def provenance(root: Path) -> dict[str, Any]:
+def provenance(root: Path, promotion: Promotion = ORIGINAL) -> dict[str, Any]:
     """Retain reviewed receipt provenance, not a reusable authorization or a fabricated live receipt."""
     return {
         "schemaVersion": 1,
@@ -189,30 +234,31 @@ def provenance(root: Path) -> dict[str, Any]:
             "gitSha": VALIDATOR_REVISION,
         },
         "qualification": {
-            "sha256": "6e3779991cdaace896a1a00a4d7fd7f118a071080bed4d0c6d561653d6251217",
-            "sizeBytes": 4285,
+            "sha256": promotion.receipt_sha256,
+            "sizeBytes": promotion.receipt_size,
             "reviewedStatus": "ACCEPTED",
             "purpose": "integration",
             "captureWindow": {
-                "start": "2026-10-15T10:46:03.756000Z",
-                "end": "2026-10-15T10:46:31.524271Z",
+                "start": promotion.capture_start,
+                "end": promotion.capture_end,
             },
             "profileSha256": inputs.PROFILE_SHA256,
             "environmentSource": {
                 "repository": "https://github.com/stanimirivanov/perfeng-environment",
-                "gitSha": "3924b55a6c3119609491f45447a09541e219f353",
+                "gitSha": promotion.source_revision,
             },
         },
         "files": {name: inputs.digest(read(root, name)) for name in sorted(FILES)},
     }
 
 
-def validate(root: Path = BUNDLE) -> None:
+def validate(root: Path = BUNDLE, promotion: Promotion = ORIGINAL) -> None:
     """Verify the complete promoted closure offline; live admission and deployment remain separate."""
     inventory = {path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()}
     require(inventory == FILES | {"README.md", "provenance.json"}, "unexpected file inventory")
     require(
-        document(root, "provenance.json") == provenance(root), "provenance or file checksum differs"
+        document(root, "provenance.json") == provenance(root, promotion),
+        "provenance or file checksum differs",
     )
     for name, expected in (
         (
@@ -245,7 +291,7 @@ def validate(root: Path = BUNDLE) -> None:
     ):
         require(read(root, name) == inputs.read(source), name + " source bytes differ")
     require(
-        inputs.digest(read(root, "identities/environment.json")) == ENVIRONMENT_SHA256,
+        inputs.digest(read(root, "identities/environment.json")) == promotion.environment_sha256,
         "accepted environment bytes differ",
     )
     contracts.validate("environment", document(root, "identities/environment.json"))
@@ -254,6 +300,6 @@ def validate(root: Path = BUNDLE) -> None:
     catalogue["tests"][0]["workload"] = "pod-startup-contained"
     require(document(root, "identities/catalogue.json") == catalogue, "catalogue cohort differs")
     require(
-        document(root, "registry.json") == registry(root),
+        document(root, "registry.json") == registry(root, promotion),
         "registry identity, admission or authorization differs",
     )

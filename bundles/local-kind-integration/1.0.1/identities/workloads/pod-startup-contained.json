@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "pod-startup-contained",
+  "version": "1.0.0",
+  "tool": "kube-burner",
+  "profile": "smoke",
+  "model": "open",
+  "configuration": {
+    "path": "execution/config.yml",
+    "sha256": "6d21be6b2cf1d963fa02e552fc5ba1d6d27d529578dd75304f0fa3f2c43fe7dd"
+  },
+  "phases": {"unit": "iterations", "warmup": 0, "measurement": 10, "cooldown": 0},
+  "dataset": {"kind": "none"}
+}

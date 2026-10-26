@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "controlPlaneValidator": {
+    "repository": "https://github.com/stanimirivanov/perfeng-control-plane",
+    "gitSha": "703d9d11fda3f94e52b4cf4fad749d73cf52247f"
+  },
+  "qualification": {
+    "sha256": "4d32f63e2da8a5cc53174b4d714f8a23a0a529754a6387d1397537f2cc9f4c43",
+    "sizeBytes": 4285,
+    "reviewedStatus": "ACCEPTED",
+    "purpose": "integration",
+    "captureWindow": {
+      "start": "2026-10-26T06:56:34.806000Z",
+      "end": "2026-10-26T06:57:04.176637Z"
+    },
+    "profileSha256": "b9fd1c55816ebb73b7b1ead490d53f4d53dae966be5e93b1bc45c9e0fc8489f5",
+    "environmentSource": {
+      "repository": "https://github.com/stanimirivanov/perfeng-environment",
+      "gitSha": "568b8cae45f57f8b748dd6c9ee615bf3034c1e2c"
+    }
+  },
+  "files": {
+    "identities/analysis-image.json": "69a68be22b84b2d8b8bd75a50411a93447eb2acde908b5e0de1e740aa2487136",
+    "identities/catalogue.json": "2bc8a419049d22868bcbd5d40dbfb6de685306a0ce0be5941a4f6806efd61a18",
+    "identities/checkout-environment.json": "d3aa4b6ca9a12408f71308907baf3da74946f6ac88cba496473e0eeb60ecea76",
+    "identities/environment.json": "9aca1ceb38d881656850b2866c6f53301cc520cfa0aca30fd33dd90aefbeb036",
+    "identities/k6-image.json": "e98cac0626a9fa211f2e0447e38e1d77eab1da41ceff4c58d6abf051d46f1309",
+    "identities/kube-burner-image.json": "576a6f6baf2732b592bab7210741e23829111eb7c9039d0b106997d2cbec92e2",
+    "identities/workloads/checkout-smoke.json": "a051d5beba6b0631e9592cf28148aec32f4b396f79d2ed5268b318ec1191ce0c",
+    "identities/workloads/pod-startup-contained.json": "1dd90543d8cbd79014fbb522890463c0ee0c324d0ecff92973da58423500a29d",
+    "jobs/analysis.yaml": "96b6da674c9ebb670bf1999973bcd43956ca60c27ce5b1f9a2b3044c9ffacf90",
+    "jobs/benchmark.json": "04608a940791f55d53540756a349df45159cd6ce4fdf3578f183f3cadedcec90",
+    "jobs/checkout.json": "fabfa2b8154397fb4d97ec39531d066c409dd80ffe4f13538d7f2b14e0873935",
+    "jobs/reporting.yaml": "1c964925a09b3ebe72e61d0c57f9fe93b4b1fb6a2af359fffa5288d523e2e4d5",
+    "policies/checkout-smoke.json": "e64925fbc0c95880be672687c123a182917d129bc472edff07cac3e1f699abf1",
+    "policies/pod-startup.json": "46c5cbd28667e90b5fe09fdbcbfde37d6ebc573d5d6bdcb8447d4caf4acb88d2",
+    "registry.json": "6814b7df19729826a22f05777517f233168d161c8b334d9a11bbbca2dabb8d4e"
+  }
+}

@@ -1,0 +1,222 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/name: perfeng-analysis
+    app.kubernetes.io/component: normalization
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: perfeng-analysis
+        app.kubernetes.io/component: normalization
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      imagePullSecrets: [{name: perfeng-execution-registry}]
+      nodeSelector:
+        kubernetes.io/os: linux
+        workload: control-plane
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: stage-inputs
+          image: amazon/aws-cli:2.36.37@sha256:be6228bd99b4b0b9787543952aebfe93c66b5503121b68a724647c523c957a9d
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              umask 027
+              printf '[default]\ns3 =\n    addressing_style = path\n' > /tmp/awsconfig
+              printf 'Staging analysis inputs: manifest=%s source=%s\n' \
+                "$PERFENG_RAW_MANIFEST_ARTIFACT_ID" "$PERFENG_SOURCE_ARTIFACT_ID"
+              download() {
+                uri="$1"
+                expected_sha256="$2"
+                expected_size="$3"
+                destination="$4"
+                case "$uri" in
+                  s3://perfeng-artifacts/runs/*) ;;
+                  *) printf 'Unsupported analysis artifact URI\n' >&2; exit 1 ;;
+                esac
+                partial="${destination}.partial"
+                rm -f "$partial" "$destination"
+                aws --endpoint-url "$PERFENG_S3_ENDPOINT" \
+                  --cli-connect-timeout 10 --cli-read-timeout 60 \
+                  s3 cp "$uri" "$partial" --only-show-errors
+                test "$(wc -c < "$partial" | tr -d '[:space:]')" = "$expected_size"
+                printf '%s  %s\n' "$expected_sha256" "$partial" | sha256sum -c - >/dev/null
+                mv "$partial" "$destination"
+              }
+              download "$PERFENG_RAW_MANIFEST_URI" "$PERFENG_RAW_MANIFEST_SHA256" \
+                "$PERFENG_RAW_MANIFEST_SIZE_BYTES" "$PERFENG_RAW_MANIFEST_PATH"
+              download "$PERFENG_SOURCE_URI" "$PERFENG_SOURCE_SHA256" \
+                "$PERFENG_SOURCE_SIZE_BYTES" "$PERFENG_SOURCE_PATH"
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: perfeng-s3-uploader-auth
+                  key: access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: perfeng-s3-uploader-auth
+                  key: secret-key
+            - name: PERFENG_S3_ENDPOINT
+              value: http://seaweedfs.perf-platform.svc.cluster.local:8333
+            - name: HOME
+              value: /tmp
+            - name: AWS_CONFIG_FILE
+              value: /tmp/awsconfig
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_EC2_METADATA_DISABLED
+              value: "true"
+            - name: AWS_PAGER
+              value: ""
+            - name: AWS_MAX_ATTEMPTS
+              value: "2"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - {name: analysis-input, mountPath: /workspace/input}
+            - {name: transfer-tmp, mountPath: /tmp}
+      containers:
+        - name: normalizer
+          image: ghcr.io/stanimirivanov/perfeng-analysis@sha256:450de3e28fe4b61627d49e053549c94e7f0a6bb4dc3df8d53bbabe5474f02ed9
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          volumeMounts:
+            - {name: analysis-input, mountPath: /workspace/input, readOnly: true}
+            - {name: analysis-output, mountPath: /workspace/output}
+        - name: publish-output
+          image: amazon/aws-cli:2.36.37@sha256:be6228bd99b4b0b9787543952aebfe93c66b5503121b68a724647c523c957a9d
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              output=/workspace/output/normalized-result.json
+              remaining=300
+              while [ ! -f "$output" ]; do
+                remaining=$((remaining - 1))
+                if [ "$remaining" -le 0 ]; then
+                  printf 'Completed normalized output did not appear\n' >&2
+                  exit 1
+                fi
+                sleep 1
+              done
+              key="runs/$PERFENG_RUN_ID/normalized-result.json"
+              set -- $(sha256sum "$output")
+              sha256="$1"
+              size="$(wc -c < "$output" | tr -d '[:space:]')"
+              artifact_id="$(cat /proc/sys/kernel/random/uuid)"
+              aws_s3() {
+                aws --endpoint-url "$PERFENG_S3_ENDPOINT" \
+                  --cli-connect-timeout 10 --cli-read-timeout 60 s3api "$@"
+              }
+              if aws_s3 put-object --bucket perfeng-artifacts --key "$key" \
+                --body "$output" --if-none-match "*" --content-type application/json \
+                --metadata "artifact-id=$artifact_id,sha256=$sha256,format=normalized-result/v1" \
+                >/dev/null 2>&1; then
+                printf 'Published normalized output for Run %s\n' "$PERFENG_RUN_ID"
+              else
+                printf 'Publication was not acknowledged; verifying the stable object\n'
+              fi
+              rm -f /tmp/normalized-result.json
+              aws_s3 get-object --bucket perfeng-artifacts --key "$key" \
+                /tmp/normalized-result.json >/dev/null
+              printf '%s  %s\n' "$sha256" /tmp/normalized-result.json | sha256sum -c - >/dev/null
+              test "$(wc -c < /tmp/normalized-result.json | tr -d '[:space:]')" = "$size"
+              test "$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query ContentLength --output text)" = "$size"
+              test "$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query ContentType --output text)" = application/json
+              stored_artifact_id="$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query 'Metadata."artifact-id"' --output text)"
+              printf '%s\n' "$stored_artifact_id" | \
+                grep -Eq '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+              test "$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query Metadata.sha256 --output text)" = "$sha256"
+              test "$(aws_s3 head-object --bucket perfeng-artifacts --key "$key" \
+                --query Metadata.format --output text)" = normalized-result/v1
+              printf 'Verified normalized publication: artifact=%s\n' "$stored_artifact_id"
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: perfeng-s3-uploader-auth
+                  key: access-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: perfeng-s3-uploader-auth
+                  key: secret-key
+            - name: PERFENG_S3_ENDPOINT
+              value: http://seaweedfs.perf-platform.svc.cluster.local:8333
+            - name: PERFENG_RUN_ID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.labels['perfeng.io/run-id']
+            - name: HOME
+              value: /tmp
+            - name: AWS_CONFIG_FILE
+              value: /tmp/awsconfig
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_EC2_METADATA_DISABLED
+              value: "true"
+            - name: AWS_PAGER
+              value: ""
+            - name: AWS_MAX_ATTEMPTS
+              value: "2"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests: {cpu: 50m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          volumeMounts:
+            - {name: analysis-output, mountPath: /workspace/output, readOnly: true}
+            - {name: transfer-tmp, mountPath: /tmp}
+      volumes:
+        - name: analysis-input
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: analysis-output
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: transfer-tmp
+          emptyDir:
+            sizeLimit: 16Mi

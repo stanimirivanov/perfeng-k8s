@@ -33,6 +33,10 @@ and in `perfeng-environment`.
 
 ## Current scope
 
+The [requalified local kind integration bundle 1.0.1](bundles/local-kind-integration/1.0.1/README.md)
+binds the rebuilt cluster using fresh accepted evidence and preserves all execution and
+authorization identities. Its downstream environment selection is a separate review.
+
 The [local kind integration bundle 1.0.0](bundles/local-kind-integration/1.0.0/README.md)
 promotes the corrected contained kube-burner image and OCI-aware analysis reader
 for the accepted M04 environment, alongside k6 checkout. It pins reservation and

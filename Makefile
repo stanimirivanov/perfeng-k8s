@@ -66,3 +66,4 @@ runtime-registry:
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-windows/1.1.2" -manifest registry.json
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-windows/1.1.3" -manifest registry.json
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-integration/1.0.0" -manifest registry.json
+	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-integration/1.0.1" -manifest registry.json

@@ -1478,7 +1478,8 @@ def validate() -> None:
     deployment.validate_control_plane_chart()
     native_search.validate()
     contained_definition.validate()
-    kubernetes_bundle.validate()
+    for promotion in kubernetes_bundle.PROMOTIONS:
+        kubernetes_bundle.validate(promotion.root, promotion)
 
 
 def main() -> int:
