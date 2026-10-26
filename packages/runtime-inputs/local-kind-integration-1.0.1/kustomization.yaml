@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: perf-platform
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    app.kubernetes.io/managed-by: perfeng-environment
+  annotations:
+    perfeng.io/deployment-revision: 04e4de13c72f3bc5d61f8ecb4aff7eb22b57183b
+configMapGenerator:
+  - name: perfeng-control-plane-runtime-315a2eede8ff
+    envs:
+      - runtime.env
+  - name: perfeng-runtime-registry-37bfeb2a30f6
+    files:
+      - identities--environment.json=files/identities/environment.json
+      - jobs--analysis.yaml=files/jobs/analysis.yaml
+      - jobs--benchmark.json=files/jobs/benchmark.json
+      - jobs--checkout.json=files/jobs/checkout.json
+      - jobs--reporting.yaml=files/jobs/reporting.yaml
+      - policies--checkout-smoke.json=files/policies/checkout-smoke.json
+      - policies--pod-startup.json=files/policies/pod-startup.json
+      - registry.json=files/registry.json
+patches:
+  - target:
+      kind: ConfigMap
+    patch: |-
+      - op: add
+        path: /immutable
+        value: true

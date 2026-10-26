@@ -18,6 +18,10 @@
 | Runtime consumer compatibility | `make runtime-registry` | Validate all fixtures and bundles through the exact pinned clean control-plane loader. |
 | Live execution | Explicit benchmark or GitOps command | Requires an authorized target, dedicated kubeconfig/context, and the focused operating guide. |
 
+The existing runtime-registry CI job uses Go 1.27.3 to compile the exact pinned
+loader source. The historical source commit and its minimum Go declaration remain
+unchanged; the compiler pin does not select a different runtime implementation.
+
 The root Makefile owns the stable command surface and CI invokes it directly.
 Helm and kubectl are required for offline chart and Kustomize rendering;
 CI pins kubectl v1.36.4. The repository's domain validator, rather than a

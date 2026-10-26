@@ -65,7 +65,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: .validation/perfeng-control-plane/go.mod
+          go-version: '1.27.3'
           cache-dependency-path: .validation/perfeng-control-plane/go.sum
       - uses: actions/setup-python@v7
         with:
