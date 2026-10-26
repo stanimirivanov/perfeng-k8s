@@ -1,0 +1,25 @@
+{
+  "cluster": "perfeng-local",
+  "fingerprint": "017ef80efa09fef2817922182248fc280212acaaf5308ada8b9358a2824daeef",
+  "kubernetes": {
+    "version": "v1.35.0",
+    "nodeCount": 3,
+    "nodePools": [
+      {
+        "name": "control-plane",
+        "cpuArchitecture": "amd64"
+      },
+      {
+        "name": "performance-generator",
+        "cpuArchitecture": "amd64"
+      },
+      {
+        "name": "sut",
+        "cpuArchitecture": "amd64"
+      }
+    ]
+  },
+  "application": {
+    "configurationHash": "b9fd1c55816ebb73b7b1ead490d53f4d53dae966be5e93b1bc45c9e0fc8489f5"
+  }
+}

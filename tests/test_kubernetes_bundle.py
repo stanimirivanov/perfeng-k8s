@@ -15,15 +15,21 @@ from scripts import kubernetes_bundle as bundle
 
 
 class KubernetesBundleTests(unittest.TestCase):
+    promotion = bundle.ORIGINAL
+
+    @property
+    def bundle_root(self) -> Path:
+        return self.promotion.root
+
     def test_reviewed_bundle_is_complete_and_keeps_distinct_workload_cohorts(self):
-        bundle.validate()
-        benchmark, checkout = bundle.document(bundle.BUNDLE, "registry.json")["entries"]
+        bundle.validate(self.bundle_root, self.promotion)
+        benchmark, checkout = bundle.document(self.bundle_root, "registry.json")["entries"]
         self.assertEqual(benchmark["workload"]["id"], "pod-startup-contained")
         self.assertEqual(checkout["workload"]["id"], "checkout-smoke")
         self.assertNotEqual(benchmark["environment"], checkout["environment"])
-        self.assertEqual(benchmark["benchmark"]["clusterUid"], bundle.CLUSTER_UID)
+        self.assertEqual(benchmark["benchmark"]["clusterUid"], self.promotion.cluster_uid)
         self.assertEqual(
-            bundle.document(bundle.BUNDLE, "policies/pod-startup.json")["spec"]["rules"][0][
+            bundle.document(self.bundle_root, "policies/pod-startup.json")["spec"]["rules"][0][
                 "regression"
             ]["reference"]["baselineId"],
             bundle.BASELINE_ID,
@@ -38,7 +44,7 @@ class KubernetesBundleTests(unittest.TestCase):
             (("entries", 0, "workload", "id"), "pod-startup-smoke"),
             (("entries", 0, "principals"), ["*"]),
             (("entries", 0, "normalizerProducer", "image"), "example.invalid/analysis:latest"),
-            (("entries", 1, "environment", "fingerprint"), bundle.FINGERPRINT),
+            (("entries", 1, "environment", "fingerprint"), self.promotion.fingerprint),
         )
         for keys, value in cases:
             with self.subTest(keys=keys), tempfile.TemporaryDirectory() as temporary:
@@ -50,7 +56,7 @@ class KubernetesBundleTests(unittest.TestCase):
                 current[keys[-1]] = value
                 self.write_and_rehash(root, "registry.json", inputs.encode(registry))
                 with self.assertRaisesRegex(ValueError, "registry identity"):
-                    bundle.validate(root)
+                    bundle.validate(root, self.promotion)
 
     def test_template_rehash_cannot_restore_wrong_storage_bindings_or_share_tokens(self):
         for mutation in ("endpoint", "key", "token", "run identity"):
@@ -71,7 +77,7 @@ class KubernetesBundleTests(unittest.TestCase):
                     job["metadata"] = {"name": "perf-20261015-120000-abcdef12"}
                 self.write_and_rehash(root, "jobs/benchmark.json", inputs.encode(job))
                 with self.assertRaisesRegex(ValueError, "jobs/benchmark.json differs"):
-                    bundle.validate(root)
+                    bundle.validate(root, self.promotion)
 
     def test_transfer_credentials_and_publication_cannot_drift_after_rehash(self):
         for name in ("analysis.yaml", "reporting.yaml"):
@@ -82,7 +88,7 @@ class KubernetesBundleTests(unittest.TestCase):
                 pod["containers"][0]["env"] = pod["initContainers"][0]["env"]
                 self.write_and_rehash(root, "jobs/" + name, yaml.safe_dump(job).encode())
                 with self.assertRaisesRegex(ValueError, "transfer or credential boundary"):
-                    bundle.validate(root)
+                    bundle.validate(root, self.promotion)
 
     def test_source_bytes_receipt_and_file_inventory_are_not_replaceable(self):
         for mutation in ("environment", "workload", "receipt", "extra file", "checksum"):
@@ -103,7 +109,27 @@ class KubernetesBundleTests(unittest.TestCase):
                     with (root / "registry.json").open("ab") as output:
                         output.write(b" ")
                 with self.assertRaises(ValueError):
-                    bundle.validate(root)
+                    bundle.validate(root, self.promotion)
+
+    def test_rehashed_receipt_provenance_cannot_authorize_another_capture(self):
+        cases = (
+            (("sha256",), "a" * 64),
+            (("sizeBytes",), self.promotion.receipt_size + 1),
+            (("captureWindow", "end"), "2026-10-26T08:00:00.000000Z"),
+            (("environmentSource", "gitSha"), "b" * 40),
+            (("profileSha256",), "c" * 64),
+        )
+        for keys, value in cases:
+            with self.subTest(keys=keys), tempfile.TemporaryDirectory() as temporary:
+                root = self.copy_bundle(Path(temporary))
+                document = bundle.document(root, "provenance.json")
+                current: Any = document["qualification"]
+                for key in keys[:-1]:
+                    current = current[key]
+                current[keys[-1]] = value
+                (root / "provenance.json").write_bytes(inputs.encode(document))
+                with self.assertRaisesRegex(ValueError, "provenance"):
+                    bundle.validate(root, self.promotion)
 
     def test_validator_pin_is_the_same_in_make_ci_and_provenance(self):
         makefile = (bundle.ROOT / "Makefile").read_text()
@@ -111,13 +137,13 @@ class KubernetesBundleTests(unittest.TestCase):
         self.assertIn("REGISTRY_VALIDATOR_REVISION := " + bundle.VALIDATOR_REVISION, makefile)
         self.assertIn("ref: " + bundle.VALIDATOR_REVISION, workflow)
         self.assertEqual(
-            bundle.document(bundle.BUNDLE, "provenance.json")["controlPlaneValidator"]["gitSha"],
+            bundle.document(self.bundle_root, "provenance.json")["controlPlaneValidator"]["gitSha"],
             bundle.VALIDATOR_REVISION,
         )
 
     def copy_bundle(self, root: Path) -> Path:
         destination = root / "bundle"
-        shutil.copytree(bundle.BUNDLE, destination)
+        shutil.copytree(self.bundle_root, destination)
         return destination
 
     def write_and_rehash(self, root: Path, name: str, content: bytes) -> None:
@@ -125,3 +151,34 @@ class KubernetesBundleTests(unittest.TestCase):
         provenance = bundle.document(root, "provenance.json")
         provenance["files"][name] = inputs.digest(content)
         (root / "provenance.json").write_bytes(inputs.encode(provenance))
+
+
+class RequalifiedKubernetesBundleTests(KubernetesBundleTests):
+    promotion = bundle.REBUILT
+
+    def test_requalification_keeps_execution_and_checkout_bytes(self):
+        for name in bundle.FILES - {"registry.json", "identities/environment.json"}:
+            with self.subTest(name=name):
+                self.assertEqual(
+                    bundle.read(self.bundle_root, name), bundle.read(bundle.BUNDLE, name)
+                )
+        previous = bundle.document(bundle.BUNDLE, "registry.json")["entries"]
+        current = bundle.document(self.bundle_root, "registry.json")["entries"]
+        self.assertEqual(current[1], previous[1])
+        self.assertEqual(current[0]["environment"]["version"], "1.0.0")
+        self.assertNotEqual(
+            current[0]["environment"]["fingerprint"], previous[0]["environment"]["fingerprint"]
+        )
+        with self.assertRaisesRegex(ValueError, "provenance"):
+            bundle.validate(self.bundle_root, bundle.ORIGINAL)
+
+    def test_old_descriptor_cannot_be_rehashed_into_new_cluster_binding(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self.copy_bundle(Path(temporary))
+            self.write_and_rehash(
+                root,
+                "identities/environment.json",
+                bundle.read(bundle.BUNDLE, "identities/environment.json"),
+            )
+            with self.assertRaisesRegex(ValueError, "accepted environment bytes"):
+                bundle.validate(root, self.promotion)

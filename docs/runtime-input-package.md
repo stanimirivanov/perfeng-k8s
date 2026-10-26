@@ -3,11 +3,35 @@
 ## TL;DR
 
 - `packages/runtime-inputs/local-kind-integration-1.0.0` renders the two existing immutable non-secret ConfigMaps.
-- The package is staged and is not selected by the active local Argo CD root.
+- The new 1.0.1 package is prepared for the rebuilt cluster; downstream environment selection requires a separate review.
 - It retains the current content-addressed names and exact registry mount bytes; Secrets remain external.
 - Run the offline render and repository gates before reviewing a future environment selection.
 
-## Selected bytes and ownership
+## Requalified package 1.0.1
+
+[local-kind-integration-1.0.1](../packages/runtime-inputs/local-kind-integration-1.0.1/kustomization.yaml)
+contains the exact mounted files from [bundle 1.0.1](../bundles/local-kind-integration/1.0.1/README.md).
+It retains the 34 process-policy values and runtime ConfigMap name
+`perfeng-control-plane-runtime-315a2eede8ff`. The new registry name is
+`perfeng-runtime-registry-37bfeb2a30f6`, derived from its complete data map.
+Both immutable ConfigMaps record source snapshot `04e4de13c72f3bc5d61f8ecb4aff7eb22b57183b`,
+which contains the complete new bundle and its verified qualification provenance.
+The package is prepared in the following source commit; its source annotation is not a
+self-reference to its own commit. All historical package/bundle files remain unchanged.
+
+The consumer must separately select the final package-bearing Git commit, source snapshot,
+bundle checksum and both ConfigMap names. No active environment selection or live ConfigMap
+is changed by this PR. Retained resources with conflicting provenance must be inspected,
+not force-adopted or overwritten. No Secret or runtime grant is included.
+
+```sh
+kubectl kustomize packages/runtime-inputs/local-kind-integration-1.0.1
+```
+
+The same shape, exact mounted-byte parity, content-hash and chart-reference tests apply to
+both package versions. Runtime policy bytes are also compared across versions.
+
+## Original package bytes and ownership
 
 The [Kustomize package](../packages/runtime-inputs/local-kind-integration-1.0.0/kustomization.yaml)
 contains the 34 existing non-secret process-policy values and eight mounted
@@ -47,10 +71,9 @@ checks that the pinned control-plane loader accepts the unchanged bundle.
 
 ## Adoption boundary and recovery
 
-This package is not included in the active local root and does not alter
-`perfeng-environment`'s deployment lock. PR 6 must separately select the
-package in Argo CD, prove that each live resource has matching immutable
-bytes and the expected owner, inspect the diff, and retain manual control-plane
+The new 1.0.1 package does not alter `perfeng-environment`'s deployment lock.
+A downstream selection must separately select the package in Argo CD, prove that each
+live resource has matching immutable bytes and the expected owner, inspect the diff, and retain manual control-plane
 activation. The current `control_plane_runtime.py` path remains operational
 until that adoption is accepted.
 

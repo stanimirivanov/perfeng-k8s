@@ -1,0 +1,243 @@
+{
+  "spec": {
+    "backoffLimit": 0,
+    "completions": 1,
+    "parallelism": 1,
+    "activeDeadlineSeconds": 600,
+    "template": {
+      "spec": {
+        "serviceAccountName": "benchmark-executor",
+        "automountServiceAccountToken": false,
+        "enableServiceLinks": false,
+        "restartPolicy": "Never",
+        "terminationGracePeriodSeconds": 15,
+        "imagePullSecrets": [
+          {
+            "name": "perfeng-execution-registry"
+          }
+        ],
+        "nodeSelector": {
+          "workload": "performance-generator",
+          "kubernetes.io/os": "linux",
+          "kubernetes.io/arch": "amd64"
+        },
+        "securityContext": {
+          "runAsNonRoot": true,
+          "runAsUser": 65532,
+          "runAsGroup": 65532,
+          "fsGroup": 65532,
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        },
+        "initContainers": [
+          {
+            "name": "benchmark",
+            "image": "ghcr.io/stanimirivanov/perfeng-kube-burner@sha256:b4f6a90225e14f67c5c2fa0bc2657eb871e92f7543b6b1027eb618cff633d612",
+            "imagePullPolicy": "IfNotPresent",
+            "args": [
+              "run",
+              "--request",
+              "/inputs/request.json",
+              "--request-sha256",
+              "0000000000000000000000000000000000000000000000000000000000000000"
+            ],
+            "env": [
+              {
+                "name": "PERFENG_EXECUTOR_POD_UID",
+                "valueFrom": {
+                  "fieldRef": {
+                    "fieldPath": "metadata.uid",
+                    "apiVersion": "v1"
+                  }
+                }
+              }
+            ],
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "readOnlyRootFilesystem": true,
+              "capabilities": {
+                "drop": [
+                  "ALL"
+                ]
+              }
+            },
+            "resources": {
+              "requests": {
+                "cpu": "500m",
+                "memory": "256Mi",
+                "ephemeral-storage": "128Mi"
+              },
+              "limits": {
+                "cpu": "1",
+                "memory": "512Mi",
+                "ephemeral-storage": "256Mi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "name": "inputs",
+                "mountPath": "/inputs/request.json",
+                "subPath": "request.json",
+                "readOnly": true
+              },
+              {
+                "name": "inputs",
+                "mountPath": "/inputs/environment.json",
+                "subPath": "environment.json",
+                "readOnly": true
+              },
+              {
+                "name": "api",
+                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                "readOnly": true
+              },
+              {
+                "name": "results",
+                "mountPath": "/results"
+              },
+              {
+                "name": "runner-tmp",
+                "mountPath": "/tmp"
+              }
+            ]
+          }
+        ],
+        "containers": [
+          {
+            "name": "publish-raw",
+            "image": "ghcr.io/stanimirivanov/perfeng-kube-burner@sha256:b4f6a90225e14f67c5c2fa0bc2657eb871e92f7543b6b1027eb618cff633d612",
+            "imagePullPolicy": "IfNotPresent",
+            "args": [
+              "publish",
+              "--request",
+              "/inputs/request.json",
+              "--request-sha256",
+              "0000000000000000000000000000000000000000000000000000000000000000"
+            ],
+            "env": [
+              {
+                "name": "PERFENG_S3_ENDPOINT",
+                "value": "http://seaweedfs.perf-platform.svc.cluster.local:8333"
+              },
+              {
+                "name": "AWS_ACCESS_KEY_ID",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "perfeng-s3-uploader-auth",
+                    "key": "access-key"
+                  }
+                }
+              },
+              {
+                "name": "AWS_SECRET_ACCESS_KEY",
+                "valueFrom": {
+                  "secretKeyRef": {
+                    "name": "perfeng-s3-uploader-auth",
+                    "key": "secret-key"
+                  }
+                }
+              }
+            ],
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "readOnlyRootFilesystem": true,
+              "capabilities": {
+                "drop": [
+                  "ALL"
+                ]
+              }
+            },
+            "resources": {
+              "requests": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "ephemeral-storage": "64Mi"
+              },
+              "limits": {
+                "cpu": "500m",
+                "memory": "256Mi",
+                "ephemeral-storage": "256Mi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "name": "inputs",
+                "mountPath": "/inputs/request.json",
+                "subPath": "request.json",
+                "readOnly": true
+              },
+              {
+                "name": "inputs",
+                "mountPath": "/inputs/environment.json",
+                "subPath": "environment.json",
+                "readOnly": true
+              },
+              {
+                "name": "results",
+                "mountPath": "/results",
+                "readOnly": true
+              },
+              {
+                "name": "publisher-tmp",
+                "mountPath": "/tmp"
+              }
+            ]
+          }
+        ],
+        "volumes": [
+          {
+            "name": "inputs",
+            "configMap": {
+              "name": "benchmark-inputs",
+              "defaultMode": 420
+            }
+          },
+          {
+            "name": "api",
+            "projected": {
+              "sources": [
+                {
+                  "serviceAccountToken": {
+                    "path": "token",
+                    "expirationSeconds": 600
+                  }
+                },
+                {
+                  "configMap": {
+                    "name": "kube-root-ca.crt",
+                    "items": [
+                      {
+                        "key": "ca.crt",
+                        "path": "ca.crt"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "defaultMode": 420
+            }
+          },
+          {
+            "name": "results",
+            "emptyDir": {
+              "sizeLimit": "128Mi"
+            }
+          },
+          {
+            "name": "runner-tmp",
+            "emptyDir": {
+              "sizeLimit": "32Mi"
+            }
+          },
+          {
+            "name": "publisher-tmp",
+            "emptyDir": {
+              "sizeLimit": "32Mi"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

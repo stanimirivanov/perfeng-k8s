@@ -1,0 +1,26 @@
+{
+  "apiVersion": "performance.perfeng.io/v1",
+  "kind": "PerformancePolicy",
+  "metadata": {
+    "name": "checkout-api",
+    "version": "1.0.0",
+    "owner": "platform-team"
+  },
+  "spec": {
+    "mode": "observe",
+    "missingData": "inconclusive",
+    "rules": [
+      {
+        "id": "checkout-latency",
+        "metric": {
+          "name": "api.http.duration",
+          "statistic": "p95",
+          "unit": "ms"
+        },
+        "slo": {
+          "max": 500
+        }
+      }
+    ]
+  }
+}
