@@ -73,7 +73,7 @@ Follow the engineering standards and relevant README sections.
 
 ## Quality and documentation
 
-- Validate on Windows and Linux when path, archive or rendering behavior is portable platform
+- Validate on Linux when path, archive or rendering behavior is portable platform
   surface.
 - Prove charts through strict linting, schema validation and rendered-object assertions; do not rely
   on template appearance.

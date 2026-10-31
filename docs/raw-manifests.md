@@ -82,10 +82,10 @@ Create a request containing exactly `testId` and the three receipts:
 Replace each empty artifact with the storage adapter's complete verified
 reference, then run:
 
-```powershell
-uv run --locked python -m scripts.manifest `
-  .local/results/perf-20260908-120000-a1b2c3d4 `
-  .local/manifest-request.json `
+```sh
+uv run --locked python -m scripts.manifest \
+  .local/results/perf-20260908-120000-a1b2c3d4 \
+  .local/manifest-request.json \
   .local/raw-result.json
 ```
 

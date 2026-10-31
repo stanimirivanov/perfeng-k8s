@@ -86,3 +86,5 @@ How will assumptions and consequences be verified?
 | [0001](0001-image-backed-native-search-chart.md) | Proposed | Package the published controlled fixture without absorbing environment selection, HTTPS access or Windows qualification. |
 | [0002](0002-contained-kube-burner-packaging.md) | Proposed | Package upstream kube-burner with contained Pod writes and verified publication, separately from runtime promotion. |
 | [0003](0003-package-non-secret-runtime-inputs.md) | Proposed | Package reviewed non-secret runtime inputs as a versioned Kustomize artifact while the workload chart keeps external references. |
+
+| [0004](0004-support-linux-hosts.md) | Proposed | Support Linux development and native browser hosts; retire active Windows support. |
