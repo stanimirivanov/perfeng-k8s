@@ -122,7 +122,7 @@ configuration mutation.
 - Bound collection sizes, resource quantities, input files, diagnostics and subprocess timeouts.
 - Files under `testdata` are synthetic and non-deployable. Names, hashes and values there must make
   that boundary obvious and validators must reject their use as promotion input.
-- Windows and POSIX paths may differ in spelling/case while identifying the same file. Resolve and
+- Paths may contain links or traversal while identifying the same file. Resolve and
   compare paths safely without assuming temporary-path textual equality.
 
 ## Python and validator design
@@ -144,7 +144,7 @@ configuration mutation.
 ## Testing and validation
 
 - Run formatting, linting, type checking and unit tests on repository-owned Python.
-- Run full repository validation on Windows and Linux because archive, path and temporary-directory
+- Run full repository validation on Linux because archive, path and temporary-directory
   behavior is part of the supported surface.
 - Helm checks include strict linting, values-schema rejection and assertions over rendered resource
   kinds, namespaces, identities, security contexts, probes, mounts, resources and RBAC.

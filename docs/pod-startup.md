@@ -34,7 +34,7 @@ The runner requires an explicit kubeconfig, context, run identity, and fresh
 output directory. Its default mode only prints the planned target and command;
 it does not download tools or contact Kubernetes.
 
-```powershell
+```sh
 $arguments = @(
   "-m", "scripts.benchmark", "pod-startup",
   "--kubeconfig", "../perfeng-environment/.local/perfeng-local.kubeconfig",
@@ -57,8 +57,8 @@ non-empty JSON measurement file, and removal of the benchmark namespace.
 If execution fails and the namespace remains, inspect it before deciding whether
 to delete it:
 
-```powershell
-kubectl --kubeconfig ../perfeng-environment/.local/perfeng-local.kubeconfig `
+```sh
+kubectl --kubeconfig ../perfeng-environment/.local/perfeng-local.kubeconfig \
   --context kind-perfeng-local get namespace perfeng-pod-startup
 ```
 

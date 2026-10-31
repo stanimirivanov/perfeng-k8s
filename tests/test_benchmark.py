@@ -16,6 +16,14 @@ RUN_ID = "perf-20260908-120000-a1b2c3d4"
 
 
 class BenchmarkCommandTests(unittest.TestCase):
+    def test_windows_host_is_rejected_before_download(self) -> None:
+        with (
+            patch.object(benchmark.platform, "system", return_value="Windows"),
+            patch.object(benchmark.platform, "machine", return_value="AMD64"),
+        ):
+            with self.assertRaisesRegex(benchmark.BenchmarkError, "Only Linux"):
+                benchmark.host_asset()
+
     def test_terminal_output_replaces_unsupported_unicode(self) -> None:
         self.assertEqual(
             benchmark.terminal_text("Writing results 📁\n", "cp1252"),
@@ -90,7 +98,7 @@ class BenchmarkCommandTests(unittest.TestCase):
             archive_sha256="a" * 64,
             executable_sha256=digest,
             archive_kind="zip",
-            executable_name="kube-burner.exe",
+            executable_name="kube-burner",
         )
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -55,11 +55,11 @@ supply the candidate digest and external image-pull Secret. The publisher-provid
 identity is recorded under `releases/native-search/1.0.0`, separate from defaults
 and synthetic rendering values. No native runtime bundle or environment selection
 is promoted by this chart; GitOps deployment, HTTPS route cutover and accepted
-Windows qualification remain environment-owned M03 gates.
+Linux qualification remain environment-owned M03 gates.
 
 The fixture under `testdata` is intentionally synthetic and must never be
 deployed. The first reviewed bundle under
-`bundles/local-kind-windows/1.0.0` binds the native Windows pod-startup flow to
+`bundles/local-kind-windows/1.0.0` preserves the historical Windows-host pod-startup flow and binds it to
 the verified perfeng-analysis 0.8.1 image. It is a local integration bundle, not
 a production or shared-environment promotion.
 

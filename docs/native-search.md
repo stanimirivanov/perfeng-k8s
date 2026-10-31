@@ -14,7 +14,7 @@ The fixture source, NGINX configuration, image builder and publisher belong to
 `perfeng-environment`. This repository owns the reusable Kubernetes chart.
 Environment namespaces, registry credentials, Argo CD Applications, HTTPS gateway
 routing, local port forwards and deployment selection belong to `perfeng-environment`.
-The native Windows worker remains outside the Linux Kubernetes cluster.
+The native Linux worker remains outside the Linux Kubernetes cluster.
 
 [ADR 0001](decisions/0001-image-backed-native-search-chart.md) records the boundary.
 The [release identity](../releases/native-search/1.0.0/image.json) preserves the
@@ -120,7 +120,7 @@ Before claiming a Run tests this candidate:
    using expected bytes from the pinned source, plus the candidate HTTP/security checks.
 4. Select the native bundle and newer control-plane image, provision the distinct
    worker identity and prove signed upload/internal read-back separately.
-5. Obtain a fresh accepted Windows qualification and execute the browser decision
+5. Obtain a fresh accepted Linux qualification and execute the browser decision
    loop, including cancellation and explicit manual recovery.
 
 The available laptop's OS-build and background-CPU failures still block real

@@ -77,12 +77,9 @@ def host_asset() -> ToolAsset:
     machine = platform.machine().lower()
     if machine not in {"amd64", "x86_64"}:
         raise BenchmarkError("Only AMD64 benchmark hosts are currently reviewed")
-    if system == "Windows":
-        key, archive_kind, executable_name = "windows-amd64", "zip", "kube-burner.exe"
-    elif system == "Linux":
-        key, archive_kind, executable_name = "linux-amd64", "tar", "kube-burner"
-    else:
-        raise BenchmarkError("Only Windows and Linux benchmark hosts are currently reviewed")
+    if system != "Linux":
+        raise BenchmarkError("Only Linux benchmark hosts are supported")
+    key, archive_kind, executable_name = "linux-amd64", "tar", "kube-burner"
 
     assets = validate.mapping(release["assets"], "kube-burner assets")
     asset = validate.mapping(assets[key], f"kube-burner asset {key}")
