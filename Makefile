@@ -72,3 +72,13 @@ runtime-registry:
 .PHONY: contracts-shadow
 contracts-shadow:
 	@$(UV_RUN) python -m scripts.contracts_distribution --assets="$(CONTRACTS_SHADOW_ASSETS)" --bootstrap="$(CONTRACTS_BOOTSTRAP)" --verifier="$(CONTRACTS_VERIFIER)"
+
+.PHONY: contracts-update-check contracts-restore-check
+contracts-update-check:
+	@test -n "$(CONTRACTS_STAGING_TARGET)"
+	$(UV_RUN) python -m unittest discover -s tests -p 'test_contract_distribution*.py' -v
+	@$(UV_RUN) python -m scripts.contracts_distribution --assets="$(CONTRACTS_SHADOW_ASSETS)" --bootstrap="$(CONTRACTS_BOOTSTRAP)" --verifier="$(CONTRACTS_VERIFIER)" --target="$(CONTRACTS_STAGING_TARGET)"
+
+contracts-restore-check:
+	@test -n "$(CONTRACTS_STAGING_TARGET)" && test -n "$(CONTRACTS_ROLLBACK_CHECKOUT)"
+	@$(UV_RUN) python -m scripts.contracts_distribution --assets="$(CONTRACTS_SHADOW_ASSETS)" --bootstrap="$(CONTRACTS_BOOTSTRAP)" --verifier="$(CONTRACTS_VERIFIER)" --target="$(CONTRACTS_STAGING_TARGET)" --rollback="$(CONTRACTS_ROLLBACK_CHECKOUT)"

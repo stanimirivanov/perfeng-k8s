@@ -14,6 +14,7 @@
 | Contributor workflow or issue preparation | [Contributor guide](../CONTRIBUTING.md) | [Working agreement](../AGENTS.md) |
 | Build, CI, policy, dependencies, or setup | [Harness guide](development/harness.md), [dependency policy](development/dependency-policy.md) | [Engineering standards](development/engineering-standards.md), `make verify` |
 | Runtime-registry bundle or promotion | [Repository README](../README.md), the selected bundle README | Exact hashes, contract lock, `make runtime-registry` |
+| Contract snapshot updates or rollback | [Contract distribution](development/contract-distribution.md) | `make contracts-update-check`, `make contracts-restore-check` |
 | M04 contained runtime promotion | [Requalified integration bundle 1.0.1](../bundles/local-kind-integration/1.0.1/README.md), [contained package](contained-kube-burner.md) | `scripts/kubernetes_bundle.py`, regression tests and the pinned runtime loader |
 | Control-plane chart or Kubernetes security | Chart values and schema under `charts/control-plane` | `make definitions`, rendered-object tests |
 | Declarative non-secret runtime input package | [Runtime input package](runtime-input-package.md), [ADR 0003](decisions/0003-package-non-secret-runtime-inputs.md) | `kubectl kustomize`, rendered byte and identity checks |

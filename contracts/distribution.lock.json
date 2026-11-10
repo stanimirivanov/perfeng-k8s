@@ -16,5 +16,9 @@
   "manifests": {
     "primary": "f7d3312c04d74726198c620d4ddfab9849947fc1d082bcdd2b1323e3a2533601",
     "contained": "434b8aca8a5d2e0f6922cfe43663cd91faf2999a0a01efd0ffb1173bd946a8e3"
+  },
+  "snapshotLedgers": {
+    "primary": "f8f4f20c9d9b13ed2a541bd5f16f35384ebb93f26d209977c942b00d94d8df48",
+    "contained": "575e097059b670bea2c7d2572a24ea54521f7c81276ef187e8e0f5600803b801"
   }
 }
