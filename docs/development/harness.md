@@ -49,3 +49,31 @@ environment deployment selection. Helm schema and rendered-object regression
 tests run in the ordinary Linux test matrix without cluster access.
 
 Add checks at the cheapest tier that proves the invariant. Diagnostics identify the file, rule, correction, and canonical guide. Published bundle bytes are never reformatted or repaired in place; corrections create a new reviewed bundle version. Unavailable external prerequisites are reported under the constrained-environment protocol instead of being replaced by weaker checks.
+
+## Signed contract shadow
+
+Use `make contracts-shadow` to compare the primary `0.13.0` and contained
+`0.22.0` contract selections. Prepare local assets from the exact releases in
+[the distribution lock](../../contracts/distribution.lock.json). Use a trusted
+`perfeng-environment` checkout with its locked virtual environment already
+installed and its independently checksum-pinned GitHub CLI verifier.
+
+```sh
+assets=$(mktemp -d)
+lock=contracts/distribution.lock.json
+gh release download "$(jq -er .toolRelease "$lock")" \
+  --repo stanimirivanov/perfeng-environment --dir "$assets/tool"
+gh release download "$(jq -er .historyRelease "$lock")" \
+  --repo stanimirivanov/perfeng-contracts --dir "$assets/history"
+make contracts-shadow CONTRACTS_SHADOW_ASSETS="$assets" \
+  CONTRACTS_BOOTSTRAP=/absolute/path/to/perfeng-environment \
+  CONTRACTS_VERIFIER=/absolute/path/to/pinned/gh
+```
+
+The shadow restores the signed tool in a temporary directory, verifies both
+complete historical archives offline, and compares each selected signed member
+digest with the corresponding vendored bytes and ledger. Primary uses the
+provider paths directly. Contained maps four explicitly listed provider paths
+to its flat directory. A missing or mismatched family fails the gate before it
+emits a receipt. Existing validators still use the vendored schemas, and their
+normal valid and invalid fixture checks run with `make verify`.
