@@ -17,6 +17,7 @@ help:
 	@echo "  make verify            Run all repository-local checks"
 	@echo "  make supply-chain      Verify the lock and audit dependencies"
 	@echo "  make validate          Run complete repository acceptance"
+	@echo "  make contracts-shadow  Compare both contract snapshots to signed releases offline"
 	@echo "  make runtime-registry  Validate all bundles using the pinned adjacent control plane"
 
 bootstrap:
@@ -67,3 +68,7 @@ runtime-registry:
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-windows/1.1.3" -manifest registry.json
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-integration/1.0.0" -manifest registry.json
 	go -C "$(CONTROL_PLANE_ROOT)" run ./cmd/validate-registry -root "$(CURDIR)/bundles/local-kind-integration/1.0.1" -manifest registry.json
+
+.PHONY: contracts-shadow
+contracts-shadow:
+	@$(UV_RUN) python -m scripts.contracts_distribution --assets="$(CONTRACTS_SHADOW_ASSETS)" --bootstrap="$(CONTRACTS_BOOTSTRAP)" --verifier="$(CONTRACTS_VERIFIER)"
