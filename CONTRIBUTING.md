@@ -6,8 +6,6 @@
 - Use MUST, SHOULD and MAY as defined below; lowercase wording is explanatory.
 - Proceed on documented, reversible assumptions and stop for choices that materially affect
   immutable identity, authorization, compatibility, security or external state.
-- Prepare requested changes without staging or committing, then print issue content for the
-  repository owner.
 - Run repository checks and the pinned runtime loader where applicable; report unavailable checks
   as not run—never as passed.
 - Use exact published milestone titles in the form `MNN — Outcome`.
@@ -24,7 +22,7 @@ Lowercase guidance does not silently create another normative level.
 
 | Concern | Canonical source |
 |:--|:--|
-| Contributor workflow, issue timing, escalation and completion | This document |
+| Contributor requirements and verification | This document |
 | Concise contributor and agent entry point | [AGENTS.md](AGENTS.md) |
 | Task-oriented documentation routing | [docs/README.md](docs/README.md) |
 | Coding harness and verification tiers | [docs/development/harness.md](docs/development/harness.md) |
@@ -75,19 +73,11 @@ that can safely continue.
 
 ## Issue timing
 
-- When an issue number is supplied, follow its scope and milestone. A material mismatch follows the
-  escalation rules.
-- Without an issue number, prepare the smallest coherent requested change and print a complete
-  proposed issue in the completion report. The owner creates the issue and then creates or renames
-  the branch with its number.
-- Contributors acting for the owner MUST NOT stage, commit, push, create or modify issues, create
-  pull requests, mutate a cluster, promote a bundle, publish artifacts, create releases, or change
-  milestones unless explicitly requested.
-- Read-only investigation, offline validation and rendering with synthetic values MAY occur before
-  an issue exists.
-
-Creating or modifying GitHub records, releases, packages, live clusters or promoted environment
-state is an externally visible write and requires explicit authority.
+Use the [issue tracker configuration](docs/agents/issue-tracker.md) and the
+applicable skill. Reuse a supplied issue and follow its scope and milestone.
+For issue or PR writes, verify the target repository and authorization first.
+Staging, committing, pushing, publishing, changing milestones and other
+external mutations require authorization.
 
 ## Milestones and required issue
 
@@ -163,19 +153,9 @@ roadmap appearance.
 
 ## Development workflow
 
-1. Select the workflow defined in [Issue timing](#issue-timing).
-2. Prepare one focused change without staging, committing or pushing for the owner.
-3. Add or update non-deployable fixtures and rejection tests.
-4. Implement the smallest coherent chart or new immutable-bundle outcome and update documentation.
-5. Format and run exact repository checks.
-6. Validate affected bundles with the exact pinned control-plane runtime loader.
-7. Review the diff for secrets, synthetic/promoted confusion, identity drift, permissions,
-   assumptions, lock/package drift and unrelated edits.
-8. Print the canonical [completion report](#completion-report).
-9. The owner creates or confirms the issue and branch, may adjust the change, commits with `[#N]`,
-   pushes and opens the pull request.
-
-Do not store task-specific issue bodies, PR descriptions or handoff notes in the repository.
+Use the applicable `mattpocock/skills` workflow through [AGENTS.md](AGENTS.md).
+Use this guide for the repository's technical requirements, verification,
+issue and PR metadata, and authorization boundaries.
 
 ## External operations and destructive actions
 
@@ -232,8 +212,6 @@ including checks not run; security, promotion, rollout and rollback; and known l
 
 ## Review checklist
 
-- [ ] MUST: The issue uses the required structure and exact milestone title.
-- [ ] MUST: The change is one coherent deployment or promotion outcome.
 - [ ] MUST: Published bundle versions remain unchanged and new identities are exact and immutable.
 - [ ] MUST: Charts preserve caller-owned environment selection and external secret/configuration
       ownership.
@@ -247,7 +225,5 @@ including checks not run; security, promotion, rollout and rollback; and known l
 
 ## Completion report
 
-After every work item, print the repository, exact milestone, proposed issue title, complete issue
-body, assumptions and limitations, verification outcomes distinguished as passed/failed/not run,
-and a suggested `[#N]` commit subject. When an issue exists, repeat or amend it so delivered scope
-is auditable. Printing the report does not publish external records.
+Report actual verification outcomes and any remaining limitations. Include the
+linked issue or PR when one exists. Follow the applicable skill for delivery.

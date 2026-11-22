@@ -1,30 +1,23 @@
-# Repository working agreement
+# Repository agent guide
 
-## TL;DR
+## Agent skills
 
-- Read `CONTRIBUTING.md`; it is the canonical workflow policy.
-- Preserve immutable release identities, least privilege and declarative ownership boundaries.
-- Keep deployable bundles, reusable charts, synthetic fixtures and local execution distinct.
-- Run the exact checks and report their results honestly.
+Use `mattpocock/skills` as the primary workflow for planning, ticketing,
+implementation, TDD, review, and pull requests. The skills take precedence where
+contributor guidance covers the same steps. Follow the repository's technical
+requirements, CI gates, and authorization boundaries.
 
-This file is the concise, tool-facing entry point for contributors and coding agents.
-[CONTRIBUTING.md](CONTRIBUTING.md) is the canonical workflow policy. Normative terms such as MUST,
-SHOULD and MAY have the meanings defined there.
+### Issue tracker
 
-## Before changing anything
+Use GitHub Issues in `stanimirivanov/perfeng-k8s`. See [issue tracker configuration](docs/agents/issue-tracker.md).
 
-1. You MUST read [CONTRIBUTING.md](CONTRIBUTING.md), especially its ambiguity, issue-timing,
-   verification and external-side-effect rules.
-2. You MUST inspect the branch and working tree and preserve pre-existing work.
-3. You MUST use the [documentation map](docs/README.md) to select the relevant engineering
-   standards, bundle documentation, chart values/schema, operational guide, contract lock and ADR.
-   You MUST NOT bulk-read unrelated guides merely because they exist.
-4. You MUST use repository-local checks and MUST NOT claim an unavailable or unexecuted check
-   passed.
+### Triage labels
 
-If charts, bundles, hashes, runtime-loader behavior and documentation disagree, you MUST NOT
-silently pick one. Correct an obvious local defect or create a new immutable bundle/accepted ADR.
-Ordinary ambiguity follows CONTRIBUTING.
+Use the default Matt Pocock label mapping. See [triage labels](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single context with a root glossary and ADRs in `docs/decisions/`. See [domain docs](docs/agents/domain.md).
 
 ## Repository responsibility
 
@@ -41,16 +34,6 @@ Secrets, live-cluster reconciliation or the disposable local kind environment.
 - Synthetic values and files under `testdata` prove validation only and are never deployment input.
 - `perfeng-environment` owns local composition and Argo CD bootstrap; the control plane owns runtime
   interpretation of the registry bundle.
-
-## Shape of work
-
-- Each task and pull request MUST deliver one coherent, independently reviewable deployment or
-  promotion outcome.
-- Runtime promotion, chart behavior, validator upgrades, dependencies and broad cleanup MUST stay
-  separate unless inseparable for correctness.
-- Scope, assumptions, immutable identities, authorization, compatibility, affected environments,
-  rollout/recovery and verification evidence MUST be explicit.
-- Prefer a complete reviewed bundle or chart behavior over placeholders and floating selections.
 
 ## Deployment and implementation rules
 
@@ -84,7 +67,9 @@ Follow the engineering standards and relevant README sections.
 - Long documents MUST include the TL;DR required by CONTRIBUTING.
 - Bundle files, checksums, provenance, charts, fixtures, tests and documentation change together.
 
-## Completion
+## Verification
 
-The canonical required checks and completion-report format are defined in
-[CONTRIBUTING.md](CONTRIBUTING.md). Follow them after every work item.
+Run `make verify` and the applicable additional checks documented in
+[CONTRIBUTING.md](CONTRIBUTING.md#verification-and-constrained-environments).
+Use the [documentation map](docs/README.md) to find affected standards, operational
+guides and decisions. Report checks as passed, failed or unavailable.
