@@ -154,7 +154,6 @@ configuration mutation.
   reproduction uses the same clean adjacent revision.
 - Live-cluster checks are separate, explicitly authorized acceptance evidence and never implied by
   offline validation.
-- Defect fixes SHOULD begin with a failing regression test.
 
 ## Documentation and dependencies
 
