@@ -7,6 +7,8 @@
 - Bundle bytes and exact runtime-loader revisions are immutable; harness work must not rewrite them.
 - Update this map when a canonical guide moves or a recurring task lacks a route.
 
+Read the [repository glossary](../GLOSSARY.md) for domain terminology.
+
 ## Route by task
 
 | Task or changed area | Read first | Verify or consult as needed |
@@ -17,12 +19,12 @@
 | Contract snapshot updates or rollback | [Contract distribution](development/contract-distribution.md) | `make contracts-update-check`, `make contracts-restore-check` |
 | M04 contained runtime promotion | [Requalified integration bundle 1.0.1](../bundles/local-kind-integration/1.0.1/README.md), [contained package](contained-kube-burner.md) | `scripts/kubernetes_bundle.py`, regression tests and the pinned runtime loader |
 | Control-plane chart or Kubernetes security | Chart values and schema under `charts/control-plane` | `make definitions`, rendered-object tests |
-| Declarative non-secret runtime input package | [Runtime input package](runtime-input-package.md), [ADR 0003](decisions/0003-package-non-secret-runtime-inputs.md) | `kubectl kustomize`, rendered byte and identity checks |
-| Image-backed native browser target | [Native search guide](native-search.md), chart under `charts/native-search` | [ADR 0001](decisions/0001-image-backed-native-search-chart.md), `make definitions`, synthetic render/rejection tests |
+| Declarative non-secret runtime input package | [Runtime input package](runtime-input-package.md), [ADR 0003](adr/0003-package-non-secret-runtime-inputs.md) | `kubectl kustomize`, rendered byte and identity checks |
+| Image-backed native browser target | [Native search guide](native-search.md), chart under `charts/native-search` | [ADR 0001](adr/0001-image-backed-native-search-chart.md), `make definitions`, synthetic render/rejection tests |
 | Pod-startup benchmark or kube-burner | [Pod-startup guide](pod-startup.md) | Workload definition, toolchain lock, focused tests |
-| Contained kube-burner package, publication or chart | [Contained execution guide](contained-kube-burner.md), [ADR 0002](decisions/0002-contained-kube-burner-packaging.md) | `make validate`, image workflow, `tests/test_contained.py` |
+| Contained kube-burner package, publication or chart | [Contained execution guide](contained-kube-burner.md), [ADR 0002](adr/0002-contained-kube-burner-packaging.md) | `make validate`, image workflow, `tests/test_contained.py` |
 | Raw-result manifest assembly | [Raw-manifest guide](raw-manifests.md) | Contract snapshot and receipt fixtures |
-| Durable architecture or ownership decision | [ADR index](decisions/README.md) | Engineering standards and affected consumer documentation |
+| Durable architecture or ownership decision | [ADR index](adr/README.md) | Engineering standards and affected consumer documentation |
 
 ## Keeping this map useful
 

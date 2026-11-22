@@ -28,7 +28,7 @@ Lowercase guidance does not silently create another normative level.
 | Coding harness and verification tiers | [docs/development/harness.md](docs/development/harness.md) |
 | Kubernetes, bundle and promotion engineering | [docs/development/engineering-standards.md](docs/development/engineering-standards.md) |
 | Dependency admission and supply chain | [docs/development/dependency-policy.md](docs/development/dependency-policy.md) |
-| Architecture decisions | [docs/decisions](docs/decisions/README.md) |
+| Architecture decisions | [docs/adr](docs/adr/README.md) |
 | Cross-repository milestones | [perfeng-environment roadmap](https://github.com/stanimirivanov/perfeng-environment/blob/main/docs/roadmap/milestones.md) |
 | Repository boundaries and current releases | [README.md](README.md) |
 | Pod-startup execution | [docs/pod-startup.md](docs/pod-startup.md) |

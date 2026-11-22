@@ -48,7 +48,7 @@ Both resources are immutable in `perf-platform` and keep the original selected
 as historical provenance. Their suffix is the first 12 hexadecimal characters
 of SHA-256 over sorted compact JSON of the complete `data` map. The copied
 registry files are compared byte for byte with the selected bundle by
-`tests/test_runtime_inputs.py`. [ADR 0003](decisions/0003-package-non-secret-runtime-inputs.md)
+`tests/test_runtime_inputs.py`. [ADR 0003](adr/0003-package-non-secret-runtime-inputs.md)
 records why the package is separate from the workload chart.
 
 The control-plane chart still accepts these names as values and requires

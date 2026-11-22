@@ -14,7 +14,7 @@
 The upstream tool remains the benchmark implementation. This repository owns its
 container packaging, resolved-input adapter, lifecycle bounds, capture and
 publication configuration. It does not implement a second load generator.
-See [ADR 0002](decisions/0002-contained-kube-burner-packaging.md).
+See [ADR 0002](adr/0002-contained-kube-burner-packaging.md).
 
 The existing host/archive path and all published bundles are unchanged. The new
 `execution/workload.json` is `pod-startup-contained/1.0.0`; it must not reuse
