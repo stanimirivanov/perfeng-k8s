@@ -149,7 +149,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for local validation and change rules.
 
 Detailed contributor policy is in [CONTRIBUTING.md](CONTRIBUTING.md), Kubernetes and promotion
 standards are in [docs/development/engineering-standards.md](docs/development/engineering-standards.md),
-and durable decisions are recorded in [ADRs](docs/decisions/README.md).
+and durable decisions are recorded in [ADRs](docs/adr/README.md).
 
 ```sh
 uv sync --locked

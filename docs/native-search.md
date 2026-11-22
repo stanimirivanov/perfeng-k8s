@@ -16,7 +16,7 @@ Environment namespaces, registry credentials, Argo CD Applications, HTTPS gatewa
 routing, local port forwards and deployment selection belong to `perfeng-environment`.
 The native Linux worker remains outside the Linux Kubernetes cluster.
 
-[ADR 0001](decisions/0001-image-backed-native-search-chart.md) records the boundary.
+[ADR 0001](adr/0001-image-backed-native-search-chart.md) records the boundary.
 The [release identity](../releases/native-search/1.0.0/image.json) preserves the
 publisher summary supplied by the repository owner:
 
